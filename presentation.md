@@ -20,21 +20,11 @@
 
 **Speaker notes:**
 
-Picture an AIPI or undergraduate robotics lab. The first hands-on project is
-almost always a line-following robot. You print a chassis, bolt on two motors,
-stick a line sensor underneath, and write a PID loop. The students tune the
-gains by hand in week one. It works great.
+Beginner robotics lab. First project is almost always a **line-following robot** — print a chassis, bolt on two motors, write a PID loop. **Week 1**: students tune by hand. Works great.
 
-Then week three happens. Someone's motor burns out and they swap in a
-different brand. Someone else replaces the wheels with a grippier tire for a
-different project. Someone adds a payload for a demo day. Every one of those
-changes shifts the chassis dynamics, and the gains that worked on Monday are
-now wrong. What was supposed to be a one-hour re-tune takes half a class
-period. The instructor ends up doing the tuning. The students don't learn
-control theory, they just learn that PID is fragile.
+**Week 3**: someone swaps a motor. Someone else grabs grippier tires. Someone adds a payload. Every change shifts the dynamics and **the gains that worked Monday are now wrong**. The one-hour re-tune eats half a class. The instructor tunes for them. Students learn PID is fragile, not how control works.
 
-This is a narrow problem but it repeats in thousands of classrooms. That's
-the use case.
+Narrow problem — **but it repeats in thousands of classrooms**. That's the use case.
 
 ---
 
@@ -54,24 +44,15 @@ the use case.
 
 **Speaker notes:**
 
-Week 12 defined RL as an MDP — state space, action space, reward, discount,
-horizon, episodic-or-continuing. Here's ours, stated plainly so nothing is
-hand-waved.
+**Week 12 defined RL as an MDP.** State, action, reward, transition, discount, horizon. Here's ours, stated plainly so nothing is hand-waved.
 
-State is the four-dimensional chassis vector; the leading 1 is a bias term
-so the linear models downstream stay clean. Action is one of 20 discretized
-`(kp, kd)` pairs. Reward is mean-absolute tracking error plus a small
-motion-cost term, computed over one 15-second episode. Transition dynamics
-are trivial — we pick gains, the robot runs, we observe one scalar reward.
-There is no next state to plan into. Horizon is 1, so gamma has nothing to
-discount, and the episodic/continuing distinction collapses.
+- **State** — 4-D chassis vector; leading 1 is a bias term for clean linear models.
+- **Action** — one of 20 discretized `(kp, kd)` pairs.
+- **Reward** — MAE plus a small motion-cost term, over one 15-second episode.
+- **Transition** — trivial. Pick gains, run, observe one scalar. **No next state to plan into.**
+- **Horizon** — 1. γ has nothing to discount. Episodic/continuing collapses.
 
-An MDP with horizon 1 and no transition structure is the contextual-bandit
-setting. That's the formal connection. We are not sidestepping the MDP
-formulation — we are stating it and observing that most of the RL machinery
-the lecture covered (value functions, credit assignment across steps,
-discount factors, policy gradients) has nothing to do in this regime. The
-next slide is the engineering argument that follows from this.
+**A horizon-1 MDP with no transitions is a contextual bandit.** That's the formal connection. We're not sidestepping the MDP formulation — we're stating it and noting that **most of the RL machinery the lecture covered has nothing to do here** (value functions, credit assignment, discount, policy gradients). Next slide is the engineering consequence.
 
 ---
 
@@ -92,24 +73,11 @@ next slide is the engineering argument that follows from this.
 
 **Speaker notes:**
 
-It's tempting to reach for PPO or SAC because that's what "RL" means in most
-textbooks. But look at the decision shape. The student sets kp and kd once.
-The robot runs for maybe fifteen seconds. You observe a single reward:
-tracking error plus a little motion penalty. That's it. There is no
-credit-assignment problem across time steps. There's no planning. It's a
-single-shot decision conditional on the chassis you have in front of you.
+Reaching for **PPO or SAC** is tempting — that's what "RL" means in textbooks. But look at the **decision shape**: student sets `kp, kd` once, robot runs 15 seconds, one scalar reward. **No credit assignment across steps. No planning.** Single-shot decision conditional on the chassis.
 
-That matches the MDP on the previous slide — horizon 1, no transitions —
-and that regime has a name: contextual bandit. Li et al. 2010 is the
-canonical paper. LinUCB gives you a ridge-regression estimate per arm plus
-a confidence bound, so you get calibrated within-model uncertainty for
-free. That matters for safety — on a well-covered chassis, UCB width tells
-you "the model has seen this arm/context combination enough to commit."
+That's the **contextual-bandit regime** — the horizon-1 MDP from the previous slide. **Li et al. 2010** is the canonical paper. LinUCB gives ridge-regression estimates per arm plus a confidence bound — **calibrated within-model uncertainty for free**. On a well-covered chassis, UCB width tells you "the model has seen this arm × context enough to commit."
 
-PPO would work, but it would need tens of thousands of steps, a learned value
-function, and careful reward shaping. For a classroom, it's the wrong tool.
-Algorithm choice is intentionally classical. The contribution is picking the
-right shape for the problem.
+PPO would work — but needs **tens of thousands of steps** and careful reward shaping. Wrong tool for a classroom. **The contribution is picking the right shape, not a novel algorithm.**
 
 ---
 
@@ -135,25 +103,13 @@ right shape for the problem.
 
 **Speaker notes:**
 
-The sim is intentionally small. About 80 lines for world plus robot plus PID.
-The target line is a sum of two sinusoids so it actually bends. The robot is
-differential-drive with three chassis parameters: friction, inertia, and
-process noise. Friction scales forward speed. Inertia divides the yaw
-command. Noise is on the yaw rate. All three are what change when a student
-swaps hardware.
+Sim is **intentionally small** — ~80 lines for world + robot + PID. Target line is a sum of two sinusoids, so it actually bends. Three chassis parameters: **friction** (scales forward speed), **inertia** (divides yaw command), **noise** (on yaw rate). All three are what change when a student swaps hardware.
 
-The arm space is 20 discretized `(kp, kd)` pairs. I left ki at zero on
-purpose. On short curvy episodes it's the derivative and proportional terms
-that matter. The bias term in the context vector is just to keep the linear
-models clean.
+Arm space: **20 `(kp, kd)` pairs**. `ki` held at 0 — on short curvy episodes, the P and D terms dominate. Bias term in context keeps linear models clean.
 
-Baselines: fixed PID, what students actually use today. Epsilon-greedy, a
-context-blind adaptive baseline. And a per-chassis oracle that grid-searches
-the arm space for each chassis and averages three micro-rollouts. That's the
-upper bound I'm allowed to compare against.
+Three baselines: **Fixed PID** (what students use today), **ε-greedy** (context-blind adaptive), **per-chassis oracle** (grid search, 3 micro-rollouts per arm — upper bound).
 
-The dashboard on the slide reads pre-computed trajectories. No inference
-happens in the browser. It just visualizes what the bandits learned.
+Dashboard reads **pre-computed trajectories** — no inference in the browser, just visualizing what the bandits learned.
 
 ---
 
@@ -179,23 +135,11 @@ Holdout: 5 seeds × 30 randomly-sampled chassis.
 
 **Speaker notes:**
 
-Here's the core win. On a holdout of 150 episodes (five seeds, thirty
-chassis each), fixed PID violates the off-line tolerance on 76 percent of
-episodes. Three out of four times, the robot strays more than half a unit
-from the target line. That's ugly for a demo.
+Core win. Holdout = **150 episodes** (5 seeds × 30 chassis). **Fixed PID violates on 76%** — three of four episodes, the robot strays more than half a unit off the line. Ugly for a demo.
 
-Any bandit cuts that at least in half. Epsilon-greedy is at 21 percent.
-LinUCB is at 37. Neural bandit at 43. The reward numbers tell the same story:
-bandits are 0.04 to 0.09 better on a roughly -0.15 to -0.30 scale. The oracle
-upper bound is -0.15 with zero violations. Bandits are closing 60 to 80
-percent of the gap from fixed to oracle.
+**Any bandit cuts that at least in half.** ε-greedy 21%, LinUCB 37%, neural 43%. Reward numbers match: bandits are 0.04–0.09 better on a –0.15 to –0.30 scale. Oracle upper bound is –0.15, zero violations. **Bandits close 60–80% of the fixed-to-oracle gap.**
 
-I want to be honest about one thing on this slide. Epsilon-greedy narrowly
-beats LinUCB here. With only four context features and 20 arms, the
-simpler algorithm has the sample-efficiency edge. LinUCB still gives
-calibrated confidence bounds, which is what you want if you ever need to
-bolt a safety wrapper on top. But if you're grading on raw reward, you
-should know the rank.
+**Honest note**: ε-greedy narrowly beats LinUCB. With 4 context features and 20 arms, **the simpler algorithm has the sample-efficiency edge**. LinUCB still gives calibrated confidence bounds — the right pick if you later bolt on a safety wrapper — but on raw reward, know the rank.
 
 ---
 
@@ -220,32 +164,13 @@ should know the rank.
 
 **Speaker notes:**
 
-This is the alignment slide. I added a third knob to the arm space: forward
-speed, from 0.1 to 1.0. Then I set the reward to just minus mean absolute
-error. No motion penalty, no travel bonus. What could go wrong.
+Third knob on the arm space: **forward speed**, 0.1 to 1.0. Reward set to just **`-MAE`**. No motion penalty. What could go wrong.
 
-LinUCB converged on the slowest speeds. The robot barely moves. It idles
-near the start line. Mean final x is 1.69 units versus the 15-unit target. On
-paper it looks great: mean absolute error of 0.087 and zero off-line
-violations. Optimal!
+LinUCB **converged on the slowest speeds**. Robot barely moves. Mean final x = **1.69 vs. 15-unit target**. On paper it looks optimal: MAE 0.087, zero violations. Except **it never tracked the curve** — found a tiny pocket where standing still looks like tracking.
 
-Except it never tracked the curve. It never did the task. The bandit found a
-tiny pocket of reward space where standing still looks like tracking.
+**Week-13 framing — emergent-goal drift.** The bandit's *incentivized* goal (minimize MAE) is no longer aligned with *human intent* (follow the line to the end). **The idle policy scores perfectly on the proxy and zero on the task we actually wanted.** Amodei 2016 and the CoastRunners boat that spun in circles collecting power-ups sit in the same family.
 
-In the week-13 framing this is a clean case of emergent-goal drift: the
-bandit's *incentivized* goal (minimize MAE) is no longer aligned with
-*human intent* (follow the line to the end). The idle policy scores
-perfectly on the proxy and zero on the task we actually wanted. Amodei et
-al. 2016 (Concrete Problems in AI Safety) and the CoastRunners boat that
-spun in circles collecting power-ups instead of finishing the race sit in
-the same family. Same lesson either way: if the reward has a degree of
-freedom that lets you skip the task, the agent will find it.
-
-The fix is a travel-deficit term. Reward = `-MAE - 0.4 * (target_x -
-x_final)/target_x - 0.01 * mean(|omega|)`. With that, the bandit picks
-speed 0.87 and actually tracks the curve, accepting 14 violations on the
-hard chassis because now finishing the task matters. "Zero violations" was
-never the safe column. It was the degenerate one.
+**Fix**: travel-deficit term. `r = -MAE - 0.4·(target-x_final)/target - 0.01·mean(|ω|)`. Bandit now picks speed 0.87, tracks the curve, accepts 14 violations on hard chassis **because finishing matters**. **"Zero violations" was never the safe column — it was the degenerate one.**
 
 ---
 
@@ -262,40 +187,20 @@ never the safe column. It was the degenerate one.
 
 Three takeaways.
 
-One: match the tool to the decision shape. Making one decision per context
-and observing one reward per decision is a contextual bandit whether your
-textbook calls it RL or not. Using PPO here would have been theater.
+**One: match the tool to the decision shape.** One decision per context, one reward per decision is a contextual bandit — **whether the textbook calls it RL or not**. PPO here would be theater.
 
-Two: simpler wins on this problem. Epsilon-greedy ties the oracle, and the
-neural bandit does not beat LinUCB. With a four-dimensional context and
-twenty arms, there is no nonlinear structure for a neural net to find.
-Honest reporting.
+**Two: simpler wins.** ε-greedy ties the oracle. Neural bandit doesn't beat LinUCB. With 4 features and 20 arms, **no nonlinear structure for a net to find**. Honest reporting.
 
-Three: LinUCB is still the pick if you need to bolt a safety wrapper on top,
-because it gives you calibrated confidence bounds per arm. Epsilon-greedy
-does not. On this narrow benchmark the gap is small, but the story matters
-if you picture an instructor reading the arm statistics live.
+**Three: LinUCB still earns its seat** if you need a safety wrapper — calibrated confidence bounds per arm, which ε-greedy can't give you. Narrow gap on this benchmark, but the story matters when an instructor is reading arm stats live.
 
 **Live demo (≈90 seconds):**
 
-1. Open the dashboard at the URL on the slide. Click **▶ Tell me the story
-   (auto)**. Four scenes play on their own: Fixed PID on the normal chassis
-   (works), Fixed PID on the swapped chassis (drifts out of the tolerance
-   band), LinUCB on the swapped chassis (holds the line), Fixed vs LinUCB
-   side-by-side on the swapped chassis. Narrate one line per scene.
-2. Policy dropdown → **LinUCB**, chassis → **Swapped**. Show the robot
-   staying close to the target line — the live contrast with the hero GIF
-   of Fixed PID drifting on the same chassis. If asked about the "swap
-   chassis mid-run" button, say plainly: it cuts between pre-computed
-   traces; the simulator doesn't model intra-episode dynamics changes.
-3. Scroll to the **Holdout** table. Highlight the 76% → 21% violation drop
-   from Fixed to any bandit. This is the headline number.
-4. Scroll to the **Alignment** panel. Hackable regime: mean final x = 1.69
-   with zero violations. Aligned regime: mean final x = 6.13 with 14
-   violations. "Zero violations was never the safe column."
+1. Click **▶ Tell me the story (auto)**. Four scenes auto-play: fixed PID normal chassis (works), fixed PID swapped chassis (**drifts off**), LinUCB swapped chassis (**holds the line**), side-by-side. Narrate one line per scene.
+2. Policy → **LinUCB**, chassis → **Swapped**. Live contrast with the hero GIF. **If asked about the "swap mid-run" button**: it cuts between pre-computed traces; the sim doesn't model intra-episode dynamics.
+3. **Holdout table** — point at the **76% → 21% violation drop**. Headline number.
+4. **Alignment panel** — hackable: x=1.69, 0 violations. Aligned: x=6.13, 14 violations. **"Zero violations was never the safe column."**
 
-If time is tight, drop step 2. The story auto-play is the load-bearing
-demo; the rest is optional depth.
+**If time is tight, drop step 2.** The story auto-play is load-bearing; the rest is depth.
 
 ---
 
@@ -303,53 +208,22 @@ demo; the rest is optional depth.
 
 **"Why didn't you use a real robot?"**
 
-The sim is the deliverable. The point is the decision-shape argument and the
-alignment failure. A physical robot adds logistics without changing the
-story. The library is chassis-agnostic: the `Robot` class is
-swappable for any object that exposes `sense_line_error()`.
+**The sim is the deliverable.** The argument is about decision shape and alignment failure — a physical robot adds logistics without changing either. Library is chassis-agnostic: `Robot` is swappable for anything that exposes `sense_line_error()`.
 
 **"Why LinUCB and not Thompson sampling?"**
 
-LinUCB gives a deterministic upper confidence bound, which is easier to
-reason about in a classroom. Thompson sampling needs a posterior, which
-means assuming a noise model. For the neural bandit I used dropout
-Thompson sampling (Gal and Ghahramani 2016) precisely because the closed-form
-UCB didn't apply.
+**LinUCB's deterministic UCB** is easier to reason about in a classroom. Thompson sampling needs a posterior, which means assuming a noise model. For the **neural bandit** I did use dropout Thompson sampling (Gal & Ghahramani 2016) — precisely because the closed-form UCB didn't apply.
 
 **"Could the chassis swap happen mid-episode?"**
 
-Honest answer: not in the current simulator. `run_episode` constructs the
-Robot with fixed chassis parameters and never re-reads them. The
-dashboard's "swap chassis mid-run" button cuts between two pre-computed
-traces at the same step index — useful for visualizing how different gains
-look on the swapped chassis, but not a live intra-episode dynamics event.
-In the real lab students swap between sessions anyway, so
-one-episode-per-chassis is the right formulation. Intra-episode swaps
-would be a non-stationary bandit (exp3, DiscountedLinUCB) — a different
-algorithm family, explicitly out of scope.
+**Honest answer: not in the current sim.** `run_episode` builds the Robot with fixed chassis params and never re-reads them. The dashboard's "swap chassis mid-run" button **cuts between pre-computed traces** at the same step index — a visualization aid, not a live dynamics event. In the real lab, students swap between sessions anyway, so **one-episode-per-chassis is the right formulation**. Intra-episode swaps would be a non-stationary bandit (exp3, DiscountedLinUCB) — a different algorithm family, explicitly out of scope.
 
 **"Why does the oracle still violate on 21% of episodes?"**
 
-The oracle picks the arm with the best mean *reward*, which trades off MAE
-and motion cost. "Violation" is a hard threshold: any single step with more
-than 0.5 absolute error flips it. So the arm with the best average can
-still have tail excursions on the hardest chassis (low friction, high
-inertia). That gap between "best mean" and "no worst-case excursions" is
-a useful illustration of why alignment is more than reward maximization:
-the reward and the safety metric measure different things.
+Oracle picks the arm with **best mean reward** — which trades MAE against motion cost. "Violation" is a hard any-step threshold (>0.5 absolute error flips it). So the best-mean arm **can still have tail excursions** on hard chassis (low friction, high inertia). That gap between "best mean" and "no worst-case excursions" is **why alignment is more than reward maximization** — reward and safety metrics measure different things.
 
 **"How would this fail in deployment?"**
 
-Distribution shift is the obvious one. If a student adds a chassis
-parameter that wasn't in the training distribution (a tracked drivetrain,
-a very long wheelbase, a sensor mounted off-center), the context vector no
-longer describes the physics, and the bandit's extrapolation is
-unsupported. A production version would need either an out-of-distribution
-detector on the context or an escalation path back to fixed gains when
-confidence is low. LinUCB's UCB width is a *partial* signal: it measures
-in-model epistemic uncertainty over the 20-arm linear reward model. A
-chassis that lands in a low-variance direction of `A_a⁻¹` can look
-confident while the linear-reward assumption has silently broken. So the
-UCB catches "I haven't seen this arm × context combination enough," not
-"this context is off-manifold." A real deployment needs a density model on
-the context itself.
+**Distribution shift.** A student adds a chassis parameter outside the training distribution — tracked drivetrain, long wheelbase, off-center sensor — and the context vector **no longer describes the physics**. The bandit's extrapolation is unsupported.
+
+**LinUCB's UCB width is a *partial* signal.** It measures in-model epistemic uncertainty over the 20-arm linear reward. A chassis landing in a low-variance direction of `A_a⁻¹` can **look confident while the linear-reward assumption has silently broken**. So UCB catches "I haven't seen this arm × context enough," not "this context is off-manifold." Real deployment needs a density model on the context itself.
