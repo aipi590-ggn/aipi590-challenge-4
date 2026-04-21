@@ -35,6 +35,12 @@ def load():
     return d, line_x, line_y
 
 
+def auto_xlim(*trace_xs_lists, pad: float = 0.6) -> tuple:
+    """Crop the x-axis to where the robot actually goes (plus a small buffer)."""
+    x_max = max(max(xs) for xs in trace_xs_lists)
+    return (0.0, round(x_max + pad, 2))
+
+
 def render_single(policy_name: str, chassis: str, out_path: Path,
                   label: str, color: str = COPPER, step_stride: int = 3):
     """One robot on the line."""
@@ -47,34 +53,47 @@ def render_single(policy_name: str, chassis: str, out_path: Path,
     fig.patch.set_facecolor(WHISPER)
     ax.set_facecolor("white")
 
-    ax.plot(lx, ly, color=NAVY, linewidth=2.4, label="target line", zorder=3)
-    ax.fill_between(lx, [y - 0.5 for y in ly], [y + 0.5 for y in ly],
+    xlim = auto_xlim(xs)
+    visible_line = [(x, y) for x, y in zip(lx, ly) if xlim[0] <= x <= xlim[1]]
+    vlx, vly = zip(*visible_line)
+
+    ax.plot(vlx, vly, color=NAVY, linewidth=2.4, label="target line", zorder=3)
+    ax.fill_between(vlx, [y - 0.5 for y in vly], [y + 0.5 for y in vly],
                     color=COPPER, alpha=0.08, zorder=1)
+
+    # Violation markers — faint copper dots where |err| > 0.5
+    viol_xs = [xs[i] for i in range(n) if abs(errs[i]) > 0.5 and xs[i] <= xlim[1]]
+    viol_ys = [ys[i] for i in range(n) if abs(errs[i]) > 0.5 and xs[i] <= xlim[1]]
 
     trail, = ax.plot([], [], color=color, linewidth=2.0, zorder=4)
     robot, = ax.plot([], [], marker="o", markersize=8, color=color, zorder=5)
+    violations, = ax.plot([], [], marker="o", markersize=4, color=COPPER,
+                          alpha=0.6, linestyle="none", zorder=3.5)
 
-    ax.set_xlim(0, 15)
+    ax.set_xlim(*xlim)
     ax.set_ylim(0, 4)
     ax.set_xticks([])
     ax.set_yticks([])
     for s in ("top", "right", "bottom", "left"):
         ax.spines[s].set_visible(False)
-    ax.text(0.5, 3.7, label, fontsize=11, color=NAVY, weight="bold",
+    ax.text(0.05 * xlim[1], 3.7, label, fontsize=11, color=NAVY, weight="bold",
             family="DejaVu Sans")
 
-    frames = list(range(0, n, step_stride)) + [n - 1] * 8
+    frames = list(range(0, n, step_stride)) + [n - 1] * 10
 
     def update(i):
         end = min(i, n - 1)
         trail.set_data(xs[: end + 1], ys[: end + 1])
         robot.set_data([xs[end]], [ys[end]])
-        return trail, robot
+        vx = [x for j, x in enumerate(viol_xs) if j < len([k for k in range(end + 1) if abs(errs[k]) > 0.5 and xs[k] <= xlim[1]])]
+        vy = viol_ys[: len(vx)]
+        violations.set_data(vx, vy)
+        return trail, robot, violations
 
     anim = FuncAnimation(fig, update, frames=frames, interval=60, blit=True)
     anim.save(out_path, writer=PillowWriter(fps=20))
     plt.close(fig)
-    print(f"wrote {out_path} ({out_path.stat().st_size/1e3:.0f} KB)")
+    print(f"wrote {out_path} ({out_path.stat().st_size/1e3:.0f} KB, xlim={xlim})")
 
 
 def render_vs(p1: str, p2: str, chassis: str, out_path: Path,
@@ -89,8 +108,12 @@ def render_vs(p1: str, p2: str, chassis: str, out_path: Path,
     fig.patch.set_facecolor(WHISPER)
     ax.set_facecolor("white")
 
-    ax.plot(lx, ly, color=NAVY, linewidth=2.4, zorder=3)
-    ax.fill_between(lx, [y - 0.5 for y in ly], [y + 0.5 for y in ly],
+    xlim = auto_xlim(t1["xs"], t2["xs"])
+    visible_line = [(x, y) for x, y in zip(lx, ly) if xlim[0] <= x <= xlim[1]]
+    vlx, vly = zip(*visible_line)
+
+    ax.plot(vlx, vly, color=NAVY, linewidth=2.4, zorder=3)
+    ax.fill_between(vlx, [y - 0.5 for y in vly], [y + 0.5 for y in vly],
                     color=COPPER, alpha=0.08, zorder=1)
 
     trail1, = ax.plot([], [], color=COPPER, linewidth=2.0, zorder=4, alpha=0.95)
@@ -98,20 +121,19 @@ def render_vs(p1: str, p2: str, chassis: str, out_path: Path,
     trail2, = ax.plot([], [], color=ROYAL, linewidth=2.0, zorder=4, alpha=0.95)
     robot2, = ax.plot([], [], marker="o", markersize=8, color=ROYAL, zorder=5)
 
-    ax.set_xlim(0, 15)
+    ax.set_xlim(*xlim)
     ax.set_ylim(0, 4)
     ax.set_xticks([])
     ax.set_yticks([])
     for s in ("top", "right", "bottom", "left"):
         ax.spines[s].set_visible(False)
 
-    # Legend-style labels at top-left
-    ax.text(0.5, 3.75, label1, fontsize=10.5, color=COPPER, weight="bold",
+    ax.text(0.05 * xlim[1], 3.75, label1, fontsize=10.5, color=COPPER, weight="bold",
             family="DejaVu Sans")
-    ax.text(0.5, 3.40, label2, fontsize=10.5, color=ROYAL, weight="bold",
+    ax.text(0.05 * xlim[1], 3.40, label2, fontsize=10.5, color=ROYAL, weight="bold",
             family="DejaVu Sans")
 
-    frames = list(range(0, n, step_stride)) + [n - 1] * 8
+    frames = list(range(0, n, step_stride)) + [n - 1] * 10
 
     def update(i):
         end = min(i, n - 1)
