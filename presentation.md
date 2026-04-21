@@ -38,7 +38,44 @@ the use case.
 
 ---
 
-### Slide 2: Why a Bandit, Not PPO
+### Slide 2: The MDP We're Working In
+
+**On slide:**
+
+- **State** `s ∈ ℝ⁴`: `[1, friction, inertia, noise]` — the chassis features.
+- **Action** `a`: one of 20 discretized `(kp, kd)` pairs.
+- **Reward** `r = -MAE - 0.05·mean(|ω|)` over one ~15s episode.
+- **Transition**: none. Episode ends after one action.
+- **Horizon**: 1. `γ` is moot. Episodic.
+
+> **[CALLOUT]**
+> An MDP with horizon 1 and no transition dynamics *is* a contextual bandit.
+> That's the formal bridge from the class definition of RL to the tool we use.
+
+**Speaker notes:**
+
+Week 12 defined RL as an MDP — state space, action space, reward, discount,
+horizon, episodic-or-continuing. Here's ours, stated plainly so nothing is
+hand-waved.
+
+State is the four-dimensional chassis vector; the leading 1 is a bias term
+so the linear models downstream stay clean. Action is one of 20 discretized
+`(kp, kd)` pairs. Reward is mean-absolute tracking error plus a small
+motion-cost term, computed over one 15-second episode. Transition dynamics
+are trivial — we pick gains, the robot runs, we observe one scalar reward.
+There is no next state to plan into. Horizon is 1, so gamma has nothing to
+discount, and the episodic/continuing distinction collapses.
+
+An MDP with horizon 1 and no transition structure is the contextual-bandit
+setting. That's the formal connection. We are not sidestepping the MDP
+formulation — we are stating it and observing that most of the RL machinery
+the lecture covered (value functions, credit assignment across steps,
+discount factors, policy gradients) has nothing to do in this regime. The
+next slide is the engineering argument that follows from this.
+
+---
+
+### Slide 3: Why a Bandit, Not PPO
 
 **On slide:**
 
@@ -62,11 +99,12 @@ tracking error plus a little motion penalty. That's it. There is no
 credit-assignment problem across time steps. There's no planning. It's a
 single-shot decision conditional on the chassis you have in front of you.
 
-That's the definition of a contextual bandit. Li et al. 2010 is the canonical
-paper. LinUCB gives you a ridge-regression estimate per arm plus a confidence
-bound, which means you get calibrated uncertainty for free. That matters for
-safety. It means you can read off "the model is not confident about this
-chassis yet" and fall back to a safe default.
+That matches the MDP on the previous slide — horizon 1, no transitions —
+and that regime has a name: contextual bandit. Li et al. 2010 is the
+canonical paper. LinUCB gives you a ridge-regression estimate per arm plus
+a confidence bound, so you get calibrated within-model uncertainty for
+free. That matters for safety — on a well-covered chassis, UCB width tells
+you "the model has seen this arm/context combination enough to commit."
 
 PPO would work, but it would need tens of thousands of steps, a learned value
 function, and careful reward shaping. For a classroom, it's the wrong tool.
@@ -75,7 +113,7 @@ right shape for the problem.
 
 ---
 
-### Slide 3: Simulator and Baselines
+### Slide 4: Simulator and Baselines
 
 **On slide:**
 
@@ -119,7 +157,7 @@ happens in the browser. It just visualizes what the bandits learned.
 
 ---
 
-### Slide 4: Does It Work?
+### Slide 5: Does It Work?
 
 **On slide:**
 
@@ -161,7 +199,7 @@ should know the rank.
 
 ---
 
-### Slide 5: Alignment Failure I Caught
+### Slide 6: Alignment Failure I Caught
 
 **On slide:**
 
@@ -194,11 +232,14 @@ violations. Optimal!
 Except it never tracked the curve. It never did the task. The bandit found a
 tiny pocket of reward space where standing still looks like tracking.
 
-This is the line-follow analogue of the OpenAI CoastRunners boat that
-learned to spin in circles collecting power-ups instead of finishing the
-race (Amodei et al. 2016, Concrete Problems in AI Safety). Same failure
-mode, same lesson: if the reward has a degree of freedom that lets you
-skip the task, the agent will find it.
+In the week-13 framing this is a clean case of emergent-goal drift: the
+bandit's *incentivized* goal (minimize MAE) is no longer aligned with
+*human intent* (follow the line to the end). The idle policy scores
+perfectly on the proxy and zero on the task we actually wanted. Amodei et
+al. 2016 (Concrete Problems in AI Safety) and the CoastRunners boat that
+spun in circles collecting power-ups instead of finishing the race sit in
+the same family. Same lesson either way: if the reward has a degree of
+freedom that lets you skip the task, the agent will find it.
 
 The fix is a travel-deficit term. Reward = `-MAE - 0.4 * (target_x -
 x_final)/target_x - 0.01 * mean(|omega|)`. With that, the bandit picks
@@ -208,7 +249,7 @@ never the safe column. It was the degenerate one.
 
 ---
 
-### Slide 6: Takeaways
+### Slide 7: Takeaways
 
 **On slide:**
 
@@ -242,9 +283,11 @@ if you picture an instructor reading the arm statistics live.
    (works), Fixed PID on the swapped chassis (drifts out of the tolerance
    band), LinUCB on the swapped chassis (holds the line), Fixed vs LinUCB
    side-by-side on the swapped chassis. Narrate one line per scene.
-2. Policy dropdown → **LinUCB**, chassis → **Normal**, hit **Swap chassis
-   mid-run** while the robot is tracking. Point out that the trajectory
-   recovers once the bandit reads the new context.
+2. Policy dropdown → **LinUCB**, chassis → **Swapped**. Show the robot
+   staying close to the target line — the live contrast with the hero GIF
+   of Fixed PID drifting on the same chassis. If asked about the "swap
+   chassis mid-run" button, say plainly: it cuts between pre-computed
+   traces; the simulator doesn't model intra-episode dynamics changes.
 3. Scroll to the **Holdout** table. Highlight the 76% → 21% violation drop
    from Fixed to any bandit. This is the headline number.
 4. Scroll to the **Alignment** panel. Hackable regime: mean final x = 1.69
@@ -275,11 +318,15 @@ UCB didn't apply.
 
 **"Could the chassis swap happen mid-episode?"**
 
-The dashboard has a "swap chassis mid-run" button that demonstrates exactly
-that. In the real lab, students usually swap between sessions, so the
-formulation models one episode per chassis. Sequential intra-episode swaps
-would be non-stationary bandits, which is a different algorithm family
-(exp3, DiscountedLinUCB) and out of scope.
+Honest answer: not in the current simulator. `run_episode` constructs the
+Robot with fixed chassis parameters and never re-reads them. The
+dashboard's "swap chassis mid-run" button cuts between two pre-computed
+traces at the same step index — useful for visualizing how different gains
+look on the swapped chassis, but not a live intra-episode dynamics event.
+In the real lab students swap between sessions anyway, so
+one-episode-per-chassis is the right formulation. Intra-episode swaps
+would be a non-stationary bandit (exp3, DiscountedLinUCB) — a different
+algorithm family, explicitly out of scope.
 
 **"Why does the oracle still violate on 21% of episodes?"**
 
@@ -299,4 +346,10 @@ a very long wheelbase, a sensor mounted off-center), the context vector no
 longer describes the physics, and the bandit's extrapolation is
 unsupported. A production version would need either an out-of-distribution
 detector on the context or an escalation path back to fixed gains when
-confidence is low. LinUCB's UCB width gives you that signal for free.
+confidence is low. LinUCB's UCB width is a *partial* signal: it measures
+in-model epistemic uncertainty over the 20-arm linear reward model. A
+chassis that lands in a low-variance direction of `A_a⁻¹` can look
+confident while the linear-reward assumption has silently broken. So the
+UCB catches "I haven't seen this arm × context combination enough," not
+"this context is off-manifold." A real deployment needs a density model on
+the context itself.

@@ -86,7 +86,7 @@ aipi590-challenge-4/
 ├── README.md                    # this file
 ├── SCOPE.md                     # plan + locked decisions
 ├── REQUIREMENTS_CHECKLIST.md    # rubric tracker
-├── presentation.md              # 6-slide deck
+├── presentation.md              # 7-slide deck
 ├── src/
 │   ├── world.py                 # target line, Robot class
 │   ├── control.py               # PID controller
