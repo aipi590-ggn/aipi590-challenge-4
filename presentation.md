@@ -15,7 +15,7 @@
 - Same PID gains now oscillate, overshoot, or fall off the line.
 - Instructor's time goes to re-tuning instead of teaching.
 
-> **[IMAGE — AI-generated]**
+> **[IMAGE, AI-generated]**
 > Prompt: "Top-down view of a small two-wheeled educational robot on a dark surface, following a curved white line, clean minimal flat illustration style, dark background, no text"
 
 **Speaker notes:**
@@ -48,10 +48,10 @@ the use case.
 - Full RL (PPO, SAC) fits, but is the wrong tool.
 - Contextual bandits (Li et al. 2010) are the minimum tool that fits.
 
-> **[DIAGRAM — make in slides]**
-> Left box: "Full RL (PPO) — needs trajectory credit assignment, hundreds of thousands of steps, reward shaping"
-> Middle arrow labeled "decision shape"
-> Right box: "Contextual bandit (LinUCB) — one action per context, calibrated uncertainty, converges in ~80 episodes"
+> **[DIAGRAM, make in slides]**
+> Left box: "Full RL (PPO). Needs trajectory credit assignment, hundreds of thousands of steps, reward shaping."
+> Middle arrow labeled "decision shape".
+> Right box: "Contextual bandit (LinUCB). One action per context, calibrated uncertainty, converges in ~80 episodes."
 
 **Speaker notes:**
 
@@ -80,7 +80,7 @@ right shape for the problem.
 **On slide:**
 
 - 2D differential-drive sim. Chassis = (friction, inertia, noise).
-- Context vector: `[1, friction, inertia, noise]` — 4 dimensions.
+- Context vector: `[1, friction, inertia, noise]`. 4 dimensions.
 - Arm space: 20 discretized `(kp, kd)` pairs.
 - Baselines: fixed PID (status quo), epsilon-greedy, per-chassis oracle (upper bound).
 
@@ -92,7 +92,7 @@ right shape for the problem.
 > # 20 arms = {0.5, 1.0, 2.0, 3.5, 5.0} kp  x  {0.0, 0.3, 0.8, 1.5} kd
 > ```
 
-> **[LINK — live dashboard]**
+> **[LINK, live dashboard]**
 > <https://aipi590-ggn.github.io/aipi590-challenge-4/>
 
 **Speaker notes:**
@@ -133,16 +133,16 @@ Holdout: 5 seeds × 30 randomly-sampled chassis.
 | Neural bandit   | -0.226      | 42.7%          |
 | Oracle (grid)   | -0.151      | 20.7%          |
 
-> **[CHART — from notebook output]**
-> `results/holdout.png` — paired bar chart: mean reward + violation rate per policy.
+> **[CHART, from script output]**
+> `results/holdout.png`. Paired bar chart: mean reward and violation rate per policy.
 
 > **[CALLOUT]**
 > Fixed PID goes off the line on 76% of random chassis. Any bandit cuts that by at least half.
 
 **Speaker notes:**
 
-Here's the core win. On a holdout of 150 episodes — five seeds, thirty
-chassis each — fixed PID violates the off-line tolerance on 76 percent of
+Here's the core win. On a holdout of 150 episodes (five seeds, thirty
+chassis each), fixed PID violates the off-line tolerance on 76 percent of
 episodes. Three out of four times, the robot strays more than half a unit
 from the target line. That's ugly for a demo.
 
@@ -169,8 +169,8 @@ should know the rank.
 - Reward = `-MAE` only (no motion penalty).
 - LinUCB learns to **pick the slowest speed and idle**.
 
-> **[CHART — from notebook output]**
-> `results/alignment.png` — three panels: training curves, selected speed over time, final x bar chart.
+> **[CHART, from script output]**
+> `results/alignment.png`. Three panels: training curves, selected speed over time, final x bar chart.
 
 | regime                        | mean forward speed | mean x at end | mean `|err|` | violations |
 |-------------------------------|-------------------:|--------------:|--------------:|-----------:|
@@ -217,7 +217,7 @@ never the safe column. It was the degenerate one.
 - The library generalizes: any controller with a discrete hyperparameter menu can drop it in.
 - **Sibling project:** [aipi540-tabletop-perception](https://github.com/jonasneves/aipi540-tabletop-perception) is the perception layer. Same `LinUCB` object tunes visual-servoing parameters there.
 
-> **[IMAGE — optional]**
+> **[IMAGE, optional]**
 > Two-panel diagram: left panel is a robot on a line labeled "control", right panel is a camera over a workspace labeled "perception". A shared box in the middle labeled "LinUCB tuner" has arrows to both.
 
 **Speaker notes:**
@@ -252,7 +252,7 @@ on the slide.
 
 The sim is the deliverable. The point is the decision-shape argument and the
 alignment failure. A physical robot adds logistics without changing the
-story. The library is written to be chassis-agnostic — the `Robot` class is
+story. The library is chassis-agnostic: the `Robot` class is
 swappable for any object that exposes `sense_line_error()`.
 
 **"Why LinUCB and not Thompson sampling?"**
@@ -284,8 +284,8 @@ the reward and the safety metric measure different things.
 **"How would this fail in deployment?"**
 
 Distribution shift is the obvious one. If a student adds a chassis
-parameter that wasn't in the training distribution — a tracked drivetrain,
-a very long wheelbase, a sensor mounted off-center — the context vector no
+parameter that wasn't in the training distribution (a tracked drivetrain,
+a very long wheelbase, a sensor mounted off-center), the context vector no
 longer describes the physics, and the bandit's extrapolation is
 unsupported. A production version would need either an out-of-distribution
 detector on the context or an escalation path back to fixed gains when

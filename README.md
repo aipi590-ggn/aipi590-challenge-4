@@ -1,4 +1,4 @@
-# AIPI 590 · Challenge 4 — Line-Follow PID Tuner via Contextual Bandit
+# AIPI 590 · Challenge 4: Line-Follow PID Tuner via Contextual Bandit
 
 [![Live Dashboard](https://img.shields.io/badge/dashboard-live-2ca02c?style=flat)](https://aipi590-ggn.github.io/aipi590-challenge-4/)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg?style=flat)](https://www.python.org/)
@@ -107,18 +107,18 @@ Artifacts are written to `results/` and copied into `public/` for Pages.
 
 ## Key literature
 
-- **Li et al. 2010** — [A Contextual-Bandit Approach to Personalized News
+- **Li et al. 2010.** [A Contextual-Bandit Approach to Personalized News
   Article Recommendation](https://rob.schapire.net/papers/www10.pdf) (WWW).
   Canonical LinUCB paper.
-- **Dogru, Lopez-Ulloa, and Sanchez-Lopez 2021** — [Reinforcement Learning
+- **Dogru, Lopez-Ulloa, and Sanchez-Lopez 2021.** [Reinforcement Learning
   Approach to Autonomous PID Tuning](https://ieeexplore.ieee.org/document/9438840)
   (ICUAS). Adaptive PID tuning via RL in the control literature. Uses full RL
   rather than bandits, making it the natural comparison for "why not PPO here."
-- **Gal and Ghahramani 2016** — [Dropout as a Bayesian Approximation: Representing
+- **Gal and Ghahramani 2016.** [Dropout as a Bayesian Approximation: Representing
   Model Uncertainty in Deep Learning](https://proceedings.mlr.press/v48/gal16.html)
   (ICML). Justification for the dropout-Thompson-sampling trick in the neural
   bandit.
-- **Amodei et al. 2016** — [Concrete Problems in AI Safety](https://arxiv.org/abs/1606.06565)
+- **Amodei et al. 2016.** [Concrete Problems in AI Safety](https://arxiv.org/abs/1606.06565)
   (arXiv). The taxonomy the reward-hacking demo sits in: reward hacking,
   distributional shift, negative side effects.
 
