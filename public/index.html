@@ -190,6 +190,20 @@
   }
   footer a { color: var(--royal); text-decoration: none; }
 
+  /* ── Hero "the problem" loop ─────────────────────────────────── */
+  .panel.hero { border-left: 4px solid var(--copper, #C84E00); }
+  .hero-headline { margin-bottom: 10px; }
+  .hero-canvas { width: 100%; height: 170px; background: var(--whisper, #f6f7f9); border: 1px solid var(--border-subtle, #E2E6ED); border-radius: 8px; display: block; }
+
+  /* ── Story walkthrough caption ───────────────────────────────── */
+  .story-caption {
+    background: #012169; color: #F3F2F1; padding: 10px 14px; border-radius: 8px;
+    font-size: 13px; line-height: 1.45; margin-top: 10px;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .story-caption strong { color: #E89923; font-weight: 600; }
+  .story-caption .step { font: 11px/1 ui-monospace, monospace; opacity: 0.7; letter-spacing: 0.05em; text-transform: uppercase; }
+
   /* ── Replay block (alignment canvas) ─────────────────────────── */
   .replay-block { margin: 0 0 16px; }
   .replay-labels { display: flex; gap: 24px; margin: 0 0 10px; flex-wrap: wrap; }
@@ -215,9 +229,20 @@
 </header>
 
 <main>
+  <div class="panel hero" id="hero">
+    <div class="hero-headline">
+      <h2 style="margin:0 0 4px;">Hand-tuned gains don't survive a chassis change</h2>
+      <p style="margin:0; color: var(--graphite); font-size: 13px;">
+        Watch what happens when the motor is swapped but the PID gains are not.
+        This is what a beginner robotics kit looks like by week 3 of class.
+      </p>
+    </div>
+    <canvas id="hero-canvas" class="hero-canvas"></canvas>
+  </div>
+
   <div class="panel">
     <h2>What this is</h2>
-    <p style="margin: 0; color: var(--ink);">
+    <p style="margin: 0 0 10px; color: var(--ink);">
       A robot follows a curvy line with a PID controller. When a student swaps
       motors or tires, the PID gains that worked yesterday no longer fit.
       Rather than re-tune by hand, a contextual bandit picks <em>kp, kd</em>
@@ -225,6 +250,8 @@
       chassis. The animation below uses traces pre-computed by
       <code>scripts/run_experiments.py</code>.
     </p>
+    <button id="story-btn" class="primary" style="font-size: 13px; padding: 6px 14px;">▶ Tell me the story (auto)</button>
+    <div id="story-caption" class="story-caption" style="display:none"></div>
   </div>
 
   <div class="controls">
@@ -234,6 +261,15 @@
         <option value="EpsilonGreedy">Epsilon-greedy</option>
         <option value="LinUCB" selected>LinUCB</option>
         <option value="NeuralBandit">Neural bandit (dropout TS)</option>
+      </select>
+    </span>
+    <span><label>vs (optional)</label>
+      <select id="policy2">
+        <option value="" selected>— none —</option>
+        <option value="Fixed">Fixed PID</option>
+        <option value="EpsilonGreedy">Epsilon-greedy</option>
+        <option value="LinUCB">LinUCB</option>
+        <option value="NeuralBandit">Neural bandit</option>
       </select>
     </span>
     <span><label>chassis</label>
@@ -415,6 +451,7 @@
 
   // ─── Playback ───────────────────────────────────────────────────────────
   const policySel = document.getElementById("policy");
+  const policy2Sel = document.getElementById("policy2");
   const chassisSel = document.getElementById("chassis");
   const playBtn = document.getElementById("play");
   const resetBtn = document.getElementById("reset");
@@ -453,12 +490,18 @@
 
   function resetState(policy, chassis) {
     const trace = data.policies[policy][chassis];
+    const p2 = policy2Sel ? policy2Sel.value : "";
+    const trace2 = (p2 && data.policies[p2] && data.policies[p2][chassis]) ? data.policies[p2][chassis] : null;
     state = {
       policy, chassis, trace,
+      policy2: p2 || null,
+      trace2,
       step: 0,
       playing: false,
       cumAbsErr: 0,
       anyViolation: 0,
+      cumAbsErr2: 0,
+      anyViolation2: 0,
     };
     mKp.textContent = trace.kp.toFixed(1);
     mKd.textContent = trace.kd.toFixed(1);
@@ -480,6 +523,10 @@
     const i = state.step;
     state.cumAbsErr += Math.abs(trace.errs[i]);
     if (Math.abs(trace.errs[i]) > 0.5) state.anyViolation = 1;
+    if (state.trace2 && i < state.trace2.errs.length) {
+      state.cumAbsErr2 += Math.abs(state.trace2.errs[i]);
+      if (Math.abs(state.trace2.errs[i]) > 0.5) state.anyViolation2 = 1;
+    }
     state.step += 1;
     const stepsDone = state.step;
     mStep.textContent = stepsDone;
@@ -552,48 +599,45 @@
     const trace = state.trace;
     const end = Math.max(0, state.step);
 
-    // Trajectory traced so far
-    sctx.strokeStyle = POLICY_COLOR[state.policy] || GRAPHITE;
-    sctx.lineWidth = 2;
-    sctx.beginPath();
-    for (let i = 0; i < end; i++) {
-      const px = xPix(trace.xs[i]), py = yPix(trace.ys[i]);
-      if (i === 0) sctx.moveTo(px, py);
-      else sctx.lineTo(px, py);
+    function drawRobotAndTrail(tr, color, endIdx) {
+      if (!tr) return;
+      sctx.strokeStyle = color;
+      sctx.lineWidth = 2;
+      sctx.beginPath();
+      for (let i = 0; i < endIdx; i++) {
+        const px = xPix(tr.xs[i]), py = yPix(tr.ys[i]);
+        if (i === 0) sctx.moveTo(px, py);
+        else sctx.lineTo(px, py);
+      }
+      sctx.stroke();
+      const i = Math.min(endIdx, tr.xs.length - 1);
+      const rx = xPix(tr.xs[i]), ry = yPix(tr.ys[i]);
+      let dx = 1, dy = 0;
+      if (i > 0) {
+        dx = tr.xs[i] - tr.xs[i - 1]; dy = tr.ys[i] - tr.ys[i - 1];
+        const m = Math.hypot(dx, dy); if (m > 1e-6) { dx /= m; dy /= m; }
+      }
+      sctx.fillStyle = color;
+      sctx.beginPath();
+      sctx.arc(rx, ry, 7, 0, Math.PI * 2);
+      sctx.fill();
+      sctx.strokeStyle = color; sctx.lineWidth = 2;
+      sctx.beginPath(); sctx.moveTo(rx, ry);
+      const ax = rx + dx * 18, ay = ry - dy * 18;
+      sctx.lineTo(ax, ay); sctx.stroke();
+      sctx.beginPath(); sctx.arc(ax, ay, 3, 0, Math.PI * 2); sctx.fill();
     }
-    sctx.stroke();
 
-    // Robot head (with heading arrow)
-    const i = Math.min(end, trace.xs.length - 1);
-    const rx = xPix(trace.xs[i]);
-    const ry = yPix(trace.ys[i]);
-    // heading estimate from last two points
-    let dx = 1, dy = 0;
-    if (i > 0) {
-      dx = trace.xs[i] - trace.xs[i - 1];
-      dy = trace.ys[i] - trace.ys[i - 1];
-      const m = Math.hypot(dx, dy);
-      if (m > 1e-6) { dx /= m; dy /= m; }
+    // Draw primary policy
+    drawRobotAndTrail(trace, POLICY_COLOR[state.policy] || GRAPHITE, end);
+
+    // Draw secondary policy (ghost — slightly transparent, different color)
+    if (state.trace2) {
+      const col2 = POLICY_COLOR[state.policy2] || COPPER;
+      sctx.globalAlpha = 0.75;
+      drawRobotAndTrail(state.trace2, col2, end);
+      sctx.globalAlpha = 1;
     }
-    // Body
-    sctx.fillStyle = POLICY_COLOR[state.policy] || GRAPHITE;
-    sctx.beginPath();
-    sctx.arc(rx, ry, 7, 0, Math.PI * 2);
-    sctx.fill();
-    // Arrow
-    sctx.strokeStyle = sctx.fillStyle;
-    sctx.lineWidth = 2;
-    sctx.beginPath();
-    sctx.moveTo(rx, ry);
-    // scale arrow by screen geometry (dx,dy are in data coords -> convert)
-    const ax = rx + dx * 18;
-    const ay = ry - dy * 18; // invert y since yPix is inverted
-    sctx.lineTo(ax, ay);
-    sctx.stroke();
-    // Arrow head
-    sctx.beginPath();
-    sctx.arc(ax, ay, 3, 0, Math.PI * 2);
-    sctx.fill();
 
     // Axis labels
     sctx.fillStyle = GRAPHITE;
@@ -711,11 +755,120 @@
     drawStage();
     drawTimeline();
   });
+  if (policy2Sel) policy2Sel.addEventListener("change", () => {
+    pausePlayback();
+    resetState(policySel.value, chassisSel.value);
+    drawStage();
+    drawTimeline();
+  });
 
   // Initial render
   resetState(policySel.value, chassisSel.value);
   drawStage();
   drawTimeline();
+
+  // ── Hero "the problem" loop (Fixed PID on swapped chassis) ─────
+  (function heroLoop() {
+    const hero = document.getElementById("hero-canvas");
+    if (!hero || !data.policies.Fixed || !data.policies.Fixed.swapped) return;
+    const hctx = hero.getContext("2d");
+    const trace = data.policies.Fixed.swapped;
+    const HATT = "#E2E6ED", NAVY_H = "#012169", COPPER_H = "#C84E00";
+    const xMin = 0, xMax = 15, yMin = 0, yMax = 4;
+    function resize() {
+      const r = hero.getBoundingClientRect();
+      hero.width = r.width * devicePixelRatio;
+      hero.height = r.height * devicePixelRatio;
+      hctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    }
+    resize();
+    window.addEventListener("resize", resize);
+    let step = 0;
+    function drawHero() {
+      const w = hero.clientWidth, h = hero.clientHeight;
+      hctx.clearRect(0, 0, w, h);
+      const xP = x => 16 + (x - xMin) / (xMax - xMin) * (w - 32);
+      const yP = y => h - 14 - (y - yMin) / (yMax - yMin) * (h - 28);
+      // target line
+      hctx.strokeStyle = NAVY_H; hctx.lineWidth = 2.25;
+      hctx.beginPath();
+      for (let i = 0; i < data.line.length; i++) {
+        const p = data.line[i];
+        if (i === 0) hctx.moveTo(xP(p.x), yP(p.y));
+        else hctx.lineTo(xP(p.x), yP(p.y));
+      }
+      hctx.stroke();
+      // tolerance band
+      hctx.fillStyle = "rgba(200,78,0,0.08)";
+      hctx.beginPath();
+      for (let i = 0; i < data.line.length; i++) { const p = data.line[i]; hctx.lineTo(xP(p.x), yP(p.y + 0.5)); }
+      for (let i = data.line.length - 1; i >= 0; i--) { const p = data.line[i]; hctx.lineTo(xP(p.x), yP(p.y - 0.5)); }
+      hctx.closePath(); hctx.fill();
+      // trajectory + robot
+      hctx.strokeStyle = COPPER_H; hctx.lineWidth = 2;
+      hctx.beginPath();
+      const end = Math.min(step, trace.xs.length - 1);
+      for (let i = 0; i <= end; i++) {
+        if (i === 0) hctx.moveTo(xP(trace.xs[i]), yP(trace.ys[i]));
+        else hctx.lineTo(xP(trace.xs[i]), yP(trace.ys[i]));
+      }
+      hctx.stroke();
+      const i = end;
+      hctx.fillStyle = COPPER_H;
+      hctx.beginPath();
+      hctx.arc(xP(trace.xs[i]), yP(trace.ys[i]), 6, 0, Math.PI * 2);
+      hctx.fill();
+    }
+    let hLast = performance.now();
+    function heroTick(now) {
+      if (now - hLast > 45) {
+        step = step + 1;
+        if (step >= trace.xs.length + 30) step = 0; // pause at end then loop
+        hLast = now;
+        drawHero();
+      }
+      requestAnimationFrame(heroTick);
+    }
+    drawHero();
+    requestAnimationFrame(heroTick);
+  })();
+
+  // ── Story walkthrough ─────────────────────────────────────────
+  const storyBtn = document.getElementById("story-btn");
+  const storyCap = document.getElementById("story-caption");
+  const SCENES = [
+    { policy: "Fixed", policy2: "", chassis: "normal", tag: "SCENE 1", text: "<strong>Week 1.</strong> Student hand-tunes PID on the normal chassis. It tracks the line cleanly." },
+    { policy: "Fixed", policy2: "", chassis: "swapped", tag: "SCENE 2", text: "<strong>Week 3.</strong> Someone swapped the motor. Same gains, different chassis, the robot falls off." },
+    { policy: "LinUCB", policy2: "", chassis: "swapped", tag: "SCENE 3", text: "<strong>LinUCB</strong> reads the chassis features and picks new gains. Back on the line." },
+    { policy: "Fixed", policy2: "LinUCB", chassis: "swapped", tag: "SCENE 4", text: "<strong>Side by side</strong> on the same swapped chassis: Fixed (navy) vs LinUCB (copper). Adaptation is the difference." },
+  ];
+  let storyTimer = null;
+  function runScene(idx) {
+    if (idx >= SCENES.length) {
+      storyCap.style.display = "none";
+      storyBtn.textContent = "▶ Tell me the story (auto)";
+      storyBtn.disabled = false;
+      return;
+    }
+    const s = SCENES[idx];
+    policySel.value = s.policy;
+    policy2Sel.value = s.policy2;
+    chassisSel.value = s.chassis;
+    pausePlayback();
+    resetState(s.policy, s.chassis);
+    drawStage();
+    drawTimeline();
+    storyCap.style.display = "flex";
+    storyCap.innerHTML = `<span class="step">${s.tag}</span><span>${s.text}</span>`;
+    startPlayback();
+    storyTimer = setTimeout(() => runScene(idx + 1), 8500);
+  }
+  if (storyBtn) storyBtn.addEventListener("click", () => {
+    if (storyTimer) { clearTimeout(storyTimer); storyTimer = null; }
+    storyBtn.textContent = "Playing…";
+    storyBtn.disabled = true;
+    runScene(0);
+  });
 })();
 
 // ── Alignment replay canvas ──────────────────────────────────
