@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Line-Follow PID Tuner · AIPI 590 Challenge 4</title>
+<meta name="description" content="Contextual bandit for adaptive PID tuning on a line-following robot. AIPI 590, Duke University." />
+<style>
+  :root {
+    --navy: #012169;
+    --royal: #00539B;
+    --shale: #0577B1;
+    --copper: #C84E00;
+    --persimmon: #E89923;
+    --piedmont: #A1B70D;
+    --eno: #339898;
+    --ironweed: #993399;
+    --whisper: #F3F2F1;
+    --hatteras: #E2E6ED;
+    --graphite: #666666;
+    --ink: #1a1a1a;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--whisper); color: var(--ink); }
+  body {
+    font-family: system-ui, -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  header {
+    padding: 24px 32px 16px;
+    border-bottom: 1px solid var(--hatteras);
+    background: white;
+  }
+  header h1 {
+    margin: 0 0 4px; font-size: 22px; color: var(--navy); font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header .sub {
+    color: var(--graphite); font-size: 13px;
+  }
+  header a { color: var(--royal); text-decoration: none; }
+  header a:hover { text-decoration: underline; }
+  main {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 24px 32px 48px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .panel {
+    background: white;
+    border-radius: var(--radius);
+    border: 1px solid var(--hatteras);
+    padding: 16px 20px;
+  }
+  .panel h2 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    color: var(--navy);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .controls {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 16px 20px;
+    background: white;
+    border-radius: var(--radius);
+    border: 1px solid var(--hatteras);
+  }
+  .controls label {
+    font-size: 13px;
+    color: var(--graphite);
+    margin-right: 4px;
+  }
+  select, button {
+    font: inherit;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--hatteras);
+    background: white;
+    color: var(--ink);
+    cursor: pointer;
+    min-height: 36px;
+  }
+  button.primary {
+    background: var(--navy);
+    color: white;
+    border-color: var(--navy);
+  }
+  button.primary:hover { background: #011a52; }
+  button:hover { border-color: var(--graphite); }
+  select:focus, button:focus {
+    outline: 2px solid var(--royal);
+    outline-offset: 2px;
+  }
+  canvas.stage {
+    display: block;
+    width: 100%;
+    height: 260px;
+    background: white;
+    border-radius: 8px;
+  }
+  canvas.timeline {
+    display: block;
+    width: 100%;
+    height: 180px;
+    background: white;
+    border-radius: 8px;
+  }
+  .meta-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+  }
+  .metric {
+    background: var(--whisper);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .metric .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--graphite);
+  }
+  .metric .value {
+    font-family: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, monospace;
+    font-size: 18px;
+    color: var(--navy);
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .metric.warn .value { color: var(--copper); }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 780px) {
+    .two-col { grid-template-columns: 1fr; }
+    header, main { padding-left: 16px; padding-right: 16px; }
+  }
+  table.holdout {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  table.holdout th, table.holdout td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--hatteras);
+    text-align: left;
+  }
+  table.holdout th {
+    font-weight: 600;
+    color: var(--graphite);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  table.holdout td.num {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    text-align: right;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .badge.navy { background: var(--navy); color: white; }
+  .badge.copper { background: var(--copper); color: white; }
+  .badge.muted { background: var(--hatteras); color: var(--graphite); }
+  footer {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 32px 40px;
+    color: var(--graphite);
+    font-size: 12px;
+  }
+  footer a { color: var(--royal); text-decoration: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Line-follow PID tuner · contextual bandit</h1>
+  <div class="sub">
+    AIPI 590 · RL Challenge 4 ·
+    Duke University ·
+    <a href="https://github.com/aipi590-ggn/aipi590-challenge-4">source</a>
+  </div>
+</header>
+
+<main>
+  <div class="panel">
+    <h2>What this is</h2>
+    <p style="margin: 0; color: var(--ink);">
+      A robot follows a curvy line with a PID controller. When a student swaps
+      motors or tires, the PID gains that worked yesterday no longer fit.
+      Rather than re-tune by hand, a contextual bandit picks <em>kp, kd</em>
+      from a discrete menu based on a short feature vector describing the
+      chassis. The animation below uses traces pre-computed by
+      <code>scripts/run_experiments.py</code>.
+    </p>
+  </div>
+
+  <div class="controls">
+    <span><label>policy</label>
+      <select id="policy">
+        <option value="Fixed">Fixed PID (kp=2.0, kd=0.5)</option>
+        <option value="EpsilonGreedy">Epsilon-greedy</option>
+        <option value="LinUCB" selected>LinUCB</option>
+        <option value="NeuralBandit">Neural bandit (dropout TS)</option>
+      </select>
+    </span>
+    <span><label>chassis</label>
+      <select id="chassis">
+        <option value="normal">Normal (friction 1.0, inertia 1.0)</option>
+        <option value="swapped" selected>Swapped (friction 0.4, inertia 2.0)</option>
+      </select>
+    </span>
+    <button id="play" class="primary">Play</button>
+    <button id="reset">Reset</button>
+    <button id="swap">Swap chassis mid-run</button>
+  </div>
+
+  <div class="panel">
+    <h2>Robot</h2>
+    <canvas id="stage" class="stage"></canvas>
+    <div class="meta-row">
+      <div class="metric"><div class="label">kp</div><div class="value" id="m-kp">–</div></div>
+      <div class="metric"><div class="label">kd</div><div class="value" id="m-kd">–</div></div>
+      <div class="metric"><div class="label">step</div><div class="value" id="m-step">–</div></div>
+      <div class="metric"><div class="label">mean |err|</div><div class="value" id="m-mae">–</div></div>
+      <div class="metric" id="m-viol-wrap"><div class="label">off-line violation</div><div class="value" id="m-viol">–</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Timeline — line error</h2>
+    <canvas id="timeline" class="timeline"></canvas>
+  </div>
+
+  <div class="panel">
+    <h2>Offline summary charts</h2>
+    <div class="two-col">
+      <img src="./holdout.png" alt="holdout bar chart" style="width:100%; border-radius:8px;" />
+      <img src="./learning_curve.png" alt="online learning curves" style="width:100%; border-radius:8px;" />
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Holdout summary (5 seeds × 30 chassis)</h2>
+    <table class="holdout">
+      <thead>
+        <tr>
+          <th>policy</th>
+          <th>mean reward</th>
+          <th>violation rate</th>
+          <th>notes</th>
+        </tr>
+      </thead>
+      <tbody id="holdout-table"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Alignment: a reward-hacking demo</h2>
+    <p style="margin: 0 0 12px; color: var(--ink);">
+      Give the bandit a knob for forward speed and set reward to
+      <code>-MAE</code> only. It learns to pick the slowest arm. The robot
+      idles near the starting line with near-zero error and never tracks the
+      curve. Penalizing travel deficit fixes it.
+    </p>
+    <div class="two-col">
+      <img src="./alignment.png" alt="alignment demo figure" style="width: 100%; border-radius: 8px;" />
+      <div>
+        <table class="holdout" id="alignment-table">
+          <thead>
+            <tr><th></th><th>hackable reward</th><th>aligned reward</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Static data precomputed by <code>scripts/run_experiments.py</code> and <code>scripts/run_alignment.py</code>.
+  See <a href="https://github.com/aipi590-ggn/aipi590-challenge-4">repo</a> for sources.
+</footer>
+
+<script>
+(async function () {
+  const DUKE_NAVY = "#012169";
+  const ROYAL = "#00539B";
+  const COPPER = "#C84E00";
+  const PERSIMMON = "#E89923";
+  const GRAPHITE = "#666666";
+  const HATTERAS = "#E2E6ED";
+
+  const POLICY_COLOR = {
+    Fixed: COPPER,
+    EpsilonGreedy: PERSIMMON,
+    LinUCB: DUKE_NAVY,
+    NeuralBandit: ROYAL,
+  };
+
+  let data = null;
+  try {
+    const resp = await fetch("./dashboard.json", { cache: "no-store" });
+    data = await resp.json();
+  } catch (e) {
+    document.querySelector("main").innerHTML =
+      '<div class="panel"><h2>Could not load dashboard.json</h2>' +
+      '<p>Run <code>python3 scripts/run_experiments.py</code> to generate results.</p></div>';
+    return;
+  }
+
+  let alignment = null;
+  try {
+    const r = await fetch("./alignment.json", { cache: "no-store" });
+    alignment = await r.json();
+  } catch (e) { alignment = null; }
+
+  // ─── Holdout table ──────────────────────────────────────────────────────
+  const holdoutTbody = document.getElementById("holdout-table");
+  const order = ["Fixed", "EpsilonGreedy", "LinUCB", "NeuralBandit", "Oracle"];
+  const notes = {
+    Fixed: "static gains, no adaptation",
+    EpsilonGreedy: "context-blind baseline",
+    LinUCB: "linear bandit over 20 arms (Li et al. 2010)",
+    NeuralBandit: "tiny MLP per arm + dropout Thompson sampling",
+    Oracle: "per-chassis grid search (upper bound)",
+  };
+  for (const p of order) {
+    const row = data.holdout[p];
+    if (!row) continue;
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      `<td><span class="badge" style="background:${POLICY_COLOR[p] || GRAPHITE}; color:white;">${p}</span></td>` +
+      `<td class="num">${row.mean_reward.toFixed(3)}</td>` +
+      `<td class="num">${(100 * row.violation_rate).toFixed(1)}%</td>` +
+      `<td>${notes[p] || ""}</td>`;
+    holdoutTbody.appendChild(tr);
+  }
+
+  // ─── Alignment table ────────────────────────────────────────────────────
+  if (alignment) {
+    const tbody = document.querySelector("#alignment-table tbody");
+    function avg(arr) { return arr.reduce((a,b)=>a+b,0) / arr.length; }
+    const h = alignment.hackable_reward_training;
+    const a = alignment.aligned_reward_training;
+    const rows = [
+      ["mean forward speed", avg(h.speeds).toFixed(2), avg(a.speeds).toFixed(2)],
+      ["mean x at end (target 15)", avg(h.x_finals).toFixed(2), avg(a.x_finals).toFixed(2)],
+      ["mean |error|", avg(h.maes).toFixed(3), avg(a.maes).toFixed(3)],
+      ["violations / 30", h.violations.reduce((a,b)=>a+b,0), a.violations.reduce((a,b)=>a+b,0)],
+    ];
+    for (const [label, h1, h2] of rows) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${label}</td><td class="num">${h1}</td><td class="num">${h2}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  // ─── Playback ───────────────────────────────────────────────────────────
+  const policySel = document.getElementById("policy");
+  const chassisSel = document.getElementById("chassis");
+  const playBtn = document.getElementById("play");
+  const resetBtn = document.getElementById("reset");
+  const swapBtn = document.getElementById("swap");
+  const stage = document.getElementById("stage");
+  const timeline = document.getElementById("timeline");
+  const sctx = stage.getContext("2d");
+  const tctx = timeline.getContext("2d");
+  const mKp = document.getElementById("m-kp");
+  const mKd = document.getElementById("m-kd");
+  const mStep = document.getElementById("m-step");
+  const mMae = document.getElementById("m-mae");
+  const mViol = document.getElementById("m-viol");
+  const mViolWrap = document.getElementById("m-viol-wrap");
+
+  let state = null;
+  let rafId = null;
+  let tickInterval = null;
+
+  function resizeCanvases() {
+    for (const c of [stage, timeline]) {
+      const rect = c.getBoundingClientRect();
+      c.width = rect.width * devicePixelRatio;
+      c.height = rect.height * devicePixelRatio;
+      c.getContext("2d").setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    }
+  }
+  resizeCanvases();
+  window.addEventListener("resize", () => { resizeCanvases(); drawStage(); drawTimeline(); });
+
+  function pickTrace() {
+    const policy = policySel.value;
+    const chassis = chassisSel.value;
+    return { policy, chassis, trace: data.policies[policy][chassis] };
+  }
+
+  function resetState(policy, chassis) {
+    const trace = data.policies[policy][chassis];
+    state = {
+      policy, chassis, trace,
+      step: 0,
+      playing: false,
+      cumAbsErr: 0,
+      anyViolation: 0,
+    };
+    mKp.textContent = trace.kp.toFixed(1);
+    mKd.textContent = trace.kd.toFixed(1);
+    mStep.textContent = "0";
+    mMae.textContent = "0.000";
+    mViol.textContent = "no";
+    mViolWrap.classList.remove("warn");
+  }
+
+  function advance() {
+    if (!state || !state.playing) return;
+    const trace = state.trace;
+    if (state.step >= trace.xs.length) {
+      state.playing = false;
+      playBtn.textContent = "Play";
+      if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
+      return;
+    }
+    const i = state.step;
+    state.cumAbsErr += Math.abs(trace.errs[i]);
+    if (Math.abs(trace.errs[i]) > 0.5) state.anyViolation = 1;
+    state.step += 1;
+    const stepsDone = state.step;
+    mStep.textContent = stepsDone;
+    mMae.textContent = (state.cumAbsErr / stepsDone).toFixed(3);
+    if (state.anyViolation) {
+      mViol.textContent = "yes";
+      mViolWrap.classList.add("warn");
+    } else {
+      mViol.textContent = "no";
+      mViolWrap.classList.remove("warn");
+    }
+    drawStage();
+    drawTimeline();
+  }
+
+  // ─── Drawing ────────────────────────────────────────────────────────────
+  function drawStage() {
+    const w = stage.clientWidth;
+    const h = stage.clientHeight;
+    sctx.clearRect(0, 0, w, h);
+    // Axes / bounds
+    const xMin = 0, xMax = 15;
+    const yMin = 0, yMax = 4;
+    function xPix(x) { return 30 + (x - xMin) / (xMax - xMin) * (w - 60); }
+    function yPix(y) { return h - 20 - (y - yMin) / (yMax - yMin) * (h - 40); }
+
+    // Grid
+    sctx.strokeStyle = HATTERAS;
+    sctx.lineWidth = 1;
+    for (let gx = 0; gx <= 15; gx += 3) {
+      sctx.beginPath();
+      sctx.moveTo(xPix(gx), yPix(yMin));
+      sctx.lineTo(xPix(gx), yPix(yMax));
+      sctx.stroke();
+    }
+    for (let gy = 0; gy <= 4; gy += 1) {
+      sctx.beginPath();
+      sctx.moveTo(xPix(xMin), yPix(gy));
+      sctx.lineTo(xPix(xMax), yPix(gy));
+      sctx.stroke();
+    }
+
+    // Target line (pre-sampled)
+    sctx.strokeStyle = DUKE_NAVY;
+    sctx.lineWidth = 2.5;
+    sctx.beginPath();
+    for (let i = 0; i < data.line.length; i++) {
+      const p = data.line[i];
+      const px = xPix(p.x), py = yPix(p.y);
+      if (i === 0) sctx.moveTo(px, py);
+      else sctx.lineTo(px, py);
+    }
+    sctx.stroke();
+
+    // Off-line tolerance band
+    sctx.fillStyle = "rgba(200, 78, 0, 0.07)";
+    sctx.beginPath();
+    for (let i = 0; i < data.line.length; i++) {
+      const p = data.line[i];
+      sctx.lineTo(xPix(p.x), yPix(p.y + 0.5));
+    }
+    for (let i = data.line.length - 1; i >= 0; i--) {
+      const p = data.line[i];
+      sctx.lineTo(xPix(p.x), yPix(p.y - 0.5));
+    }
+    sctx.closePath();
+    sctx.fill();
+
+    if (!state) return;
+    const trace = state.trace;
+    const end = Math.max(0, state.step);
+
+    // Trajectory traced so far
+    sctx.strokeStyle = POLICY_COLOR[state.policy] || GRAPHITE;
+    sctx.lineWidth = 2;
+    sctx.beginPath();
+    for (let i = 0; i < end; i++) {
+      const px = xPix(trace.xs[i]), py = yPix(trace.ys[i]);
+      if (i === 0) sctx.moveTo(px, py);
+      else sctx.lineTo(px, py);
+    }
+    sctx.stroke();
+
+    // Robot head (with heading arrow)
+    const i = Math.min(end, trace.xs.length - 1);
+    const rx = xPix(trace.xs[i]);
+    const ry = yPix(trace.ys[i]);
+    // heading estimate from last two points
+    let dx = 1, dy = 0;
+    if (i > 0) {
+      dx = trace.xs[i] - trace.xs[i - 1];
+      dy = trace.ys[i] - trace.ys[i - 1];
+      const m = Math.hypot(dx, dy);
+      if (m > 1e-6) { dx /= m; dy /= m; }
+    }
+    // Body
+    sctx.fillStyle = POLICY_COLOR[state.policy] || GRAPHITE;
+    sctx.beginPath();
+    sctx.arc(rx, ry, 7, 0, Math.PI * 2);
+    sctx.fill();
+    // Arrow
+    sctx.strokeStyle = sctx.fillStyle;
+    sctx.lineWidth = 2;
+    sctx.beginPath();
+    sctx.moveTo(rx, ry);
+    // scale arrow by screen geometry (dx,dy are in data coords -> convert)
+    const ax = rx + dx * 18;
+    const ay = ry - dy * 18; // invert y since yPix is inverted
+    sctx.lineTo(ax, ay);
+    sctx.stroke();
+    // Arrow head
+    sctx.beginPath();
+    sctx.arc(ax, ay, 3, 0, Math.PI * 2);
+    sctx.fill();
+
+    // Axis labels
+    sctx.fillStyle = GRAPHITE;
+    sctx.font = "11px system-ui";
+    sctx.fillText("x", w - 16, h - 6);
+    sctx.fillText("y", 8, 14);
+  }
+
+  function drawTimeline() {
+    const w = timeline.clientWidth;
+    const h = timeline.clientHeight;
+    tctx.clearRect(0, 0, w, h);
+    if (!state) return;
+    const trace = state.trace;
+    const n = trace.errs.length;
+
+    function xPix(i) { return 30 + i / (n - 1) * (w - 50); }
+    function yPix(e) { return h / 2 - e * (h / 2 - 20); }
+
+    // Axes
+    tctx.strokeStyle = HATTERAS;
+    tctx.lineWidth = 1;
+    tctx.beginPath();
+    tctx.moveTo(30, h / 2); tctx.lineTo(w - 20, h / 2);
+    tctx.stroke();
+    // Tolerance lines at ±0.5
+    tctx.strokeStyle = "rgba(200, 78, 0, 0.5)";
+    tctx.setLineDash([3, 3]);
+    tctx.beginPath();
+    tctx.moveTo(30, yPix(0.5));  tctx.lineTo(w - 20, yPix(0.5));
+    tctx.moveTo(30, yPix(-0.5)); tctx.lineTo(w - 20, yPix(-0.5));
+    tctx.stroke();
+    tctx.setLineDash([]);
+
+    // Error trace
+    tctx.strokeStyle = POLICY_COLOR[state.policy] || GRAPHITE;
+    tctx.lineWidth = 1.5;
+    tctx.beginPath();
+    const end = Math.max(1, state.step);
+    for (let i = 0; i < end; i++) {
+      const px = xPix(i), py = yPix(trace.errs[i]);
+      if (i === 0) tctx.moveTo(px, py);
+      else tctx.lineTo(px, py);
+    }
+    tctx.stroke();
+
+    // Cursor
+    if (end > 0 && end < n) {
+      tctx.strokeStyle = GRAPHITE;
+      tctx.beginPath();
+      tctx.moveTo(xPix(end - 1), 8);
+      tctx.lineTo(xPix(end - 1), h - 8);
+      tctx.stroke();
+    }
+
+    // Labels
+    tctx.fillStyle = GRAPHITE;
+    tctx.font = "11px system-ui";
+    tctx.fillText("+0.5", 4, yPix(0.5) + 4);
+    tctx.fillText("-0.5", 4, yPix(-0.5) + 4);
+    tctx.fillText("0",    4, yPix(0) + 4);
+    tctx.fillText("step", w - 34, h - 4);
+  }
+
+  // ─── Control wiring ─────────────────────────────────────────────────────
+  function startPlayback() {
+    if (!state) resetState(policySel.value, chassisSel.value);
+    if (state.step >= state.trace.xs.length) resetState(policySel.value, chassisSel.value);
+    state.playing = true;
+    playBtn.textContent = "Pause";
+    if (tickInterval) clearInterval(tickInterval);
+    tickInterval = setInterval(advance, 25);
+  }
+  function pausePlayback() {
+    if (state) state.playing = false;
+    playBtn.textContent = "Play";
+    if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
+  }
+
+  playBtn.addEventListener("click", () => {
+    if (!state || !state.playing) startPlayback();
+    else pausePlayback();
+  });
+  resetBtn.addEventListener("click", () => {
+    pausePlayback();
+    resetState(policySel.value, chassisSel.value);
+    drawStage();
+    drawTimeline();
+  });
+  swapBtn.addEventListener("click", () => {
+    // Mid-run chassis swap: switch to the other chassis and continue from the
+    // same step index into that policy's pre-computed swapped trace. This
+    // gives the visual "things suddenly change" beat.
+    if (!state) return;
+    const other = state.chassis === "normal" ? "swapped" : "normal";
+    chassisSel.value = other;
+    const keepStep = state.step;
+    const wasPlaying = state.playing;
+    pausePlayback();
+    resetState(policySel.value, other);
+    state.step = Math.min(keepStep, state.trace.xs.length - 1);
+    drawStage();
+    drawTimeline();
+    if (wasPlaying) startPlayback();
+  });
+  policySel.addEventListener("change", () => {
+    pausePlayback();
+    resetState(policySel.value, chassisSel.value);
+    drawStage();
+    drawTimeline();
+  });
+  chassisSel.addEventListener("change", () => {
+    pausePlayback();
+    resetState(policySel.value, chassisSel.value);
+    drawStage();
+    drawTimeline();
+  });
+
+  // Initial render
+  resetState(policySel.value, chassisSel.value);
+  drawStage();
+  drawTimeline();
+})();
+</script>
+</body>
+</html>
