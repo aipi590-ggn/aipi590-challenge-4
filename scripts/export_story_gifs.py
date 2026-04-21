@@ -2,7 +2,13 @@
 
 Two GIFs:
 - `story_fixed_fails.gif`    — Fixed PID on the swapped chassis. Drifts off.
-- `story_fixed_vs_linucb.gif` — Fixed vs LinUCB on the same swapped chassis.
+- `story_fixed_vs_bandit.gif` — Fixed vs the best-performing bandit (EpsilonGreedy)
+                                on the same swapped chassis.
+
+EpsilonGreedy is the hero because on the dashboard's canonical swapped chassis
+it picks (kp=5.0, kd=1.5) and holds the line cleanly, while LinUCB happens to
+pick near-Fixed gains and drifts too. The aggregate holdout (slide 5) still
+shows all three bandits cut Fixed's 79% violation rate to 21-43%.
 
 Uses matplotlib + PillowWriter so no extra deps beyond what run_experiments already needs.
 """
@@ -153,10 +159,10 @@ def main():
     OUT.mkdir(exist_ok=True)
     render_single("Fixed", "swapped", OUT / "story_fixed_fails.gif",
                   label="Fixed PID on swapped chassis")
-    render_vs("Fixed", "LinUCB", "swapped",
-              OUT / "story_fixed_vs_linucb.gif",
+    render_vs("Fixed", "EpsilonGreedy", "swapped",
+              OUT / "story_fixed_vs_bandit.gif",
               label1="Fixed PID — drifts off",
-              label2="LinUCB — holds the line")
+              label2="EpsilonGreedy — holds the line")
 
 
 if __name__ == "__main__":

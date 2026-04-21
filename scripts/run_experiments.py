@@ -6,11 +6,11 @@ fixed-gain baseline and a per-chassis oracle) on a common holdout of 30 chassis.
 
 Outputs
 -------
-results/summary.json      aggregate stats per policy
-results/runs.csv          per-holdout-episode rows
-results/learning_curve.png
-results/holdout.png
-results/dashboard.json    pre-computed traces for the dashboard
+results/summary.json          aggregate stats per policy
+results/runs.csv              per-holdout-episode rows
+public/learning_curve.png     online learning curves (consumed by dashboard)
+public/holdout.png            holdout bar chart (consumed by dashboard)
+public/dashboard.json         pre-computed traces for the dashboard
 
 Reproducible: fixed seed per run, 5 seeds aggregated.
 """
@@ -32,7 +32,6 @@ from src.bandit import EpsilonGreedy, LinUCB, NeuralBandit, discretize_arms
 from src.control import PID
 from src.eval import (
     build_robot,
-    holdout_eval,
     reward_aligned,
     run_episode,
     sample_chassis,
@@ -40,7 +39,9 @@ from src.eval import (
 from src.world import Robot, line_y
 
 RESULTS = ROOT / "results"
+PUBLIC = ROOT / "public"
 RESULTS.mkdir(exist_ok=True)
+PUBLIC.mkdir(exist_ok=True)
 
 
 # ─── Oracle: best arm per chassis under the aligned reward ────────────────────
@@ -241,7 +242,7 @@ def run(seeds=(0, 1, 2, 3, 4), train_episodes: int = 150, holdout_n: int = 30):
     ax.grid(alpha=0.25)
     ax.legend(loc="lower right", frameon=False)
     plt.tight_layout()
-    plt.savefig(RESULTS / "learning_curve.png", dpi=130)
+    plt.savefig(PUBLIC / "learning_curve.png", dpi=130)
     plt.close(fig)
 
     # Holdout bar chart: mean reward + violation counts
@@ -271,7 +272,7 @@ def run(seeds=(0, 1, 2, 3, 4), train_episodes: int = 150, holdout_n: int = 30):
         for label in ax.get_xticklabels():
             label.set_rotation(15)
     plt.tight_layout()
-    plt.savefig(RESULTS / "holdout.png", dpi=130)
+    plt.savefig(PUBLIC / "holdout.png", dpi=130)
     plt.close(fig)
 
     # ─── Dashboard pre-computed traces ────────────────────────────────────────
@@ -341,7 +342,7 @@ def run(seeds=(0, 1, 2, 3, 4), train_episodes: int = 150, holdout_n: int = 30):
         "violation_rate": summary["policies"][p]["violation_rate_across_seeds"],
     } for p in pol_order}
 
-    (RESULTS / "dashboard.json").write_text(json.dumps(dash))
+    (PUBLIC / "dashboard.json").write_text(json.dumps(dash))
 
     # Console summary
     print("\n=== holdout summary (5 seeds x 30 chassis) ===")
@@ -351,7 +352,7 @@ def run(seeds=(0, 1, 2, 3, 4), train_episodes: int = 150, holdout_n: int = 30):
               f"(std {s['std_reward_across_seeds']:.3f})  "
               f"viol_rate={100 * s['violation_rate_across_seeds']:5.1f}%  "
               f"total_viols={s['total_violations']}/{s['total_holdout_episodes']}")
-    print(f"\nArtifacts: {RESULTS}/summary.json  runs.csv  learning_curve.png  holdout.png  dashboard.json")
+    print(f"\nArtifacts: {RESULTS}/summary.json  runs.csv  |  {PUBLIC}/learning_curve.png  holdout.png  dashboard.json")
 
 
 if __name__ == "__main__":

@@ -1,14 +1,6 @@
-"""Episode runner, reward functions, and evaluation harnesses.
-
-Two reward shapes are provided:
-
-- `reward_aligned`    = -MAE(line error) - lambda * mean(|omega|)
-  The motion penalty is what blocks the "stop moving" reward hack.
-- `reward_hackable`   = -MAE(line error)
-  Exact shape used in `run_alignment.py` to demonstrate the failure mode.
-"""
+"""Episode runner, aligned reward, and chassis helpers."""
 import random
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Dict, Tuple
 
 import numpy as np
 
@@ -57,18 +49,6 @@ def reward_aligned(
     return r, viol
 
 
-def reward_hackable(
-    trace: Dict[str, np.ndarray],
-    off_line_cap: float = 0.5,
-) -> Tuple[float, int]:
-    """Hackable reward: -MAE only. Used in the alignment demo."""
-    errs = trace["errs"]
-    mae = float(np.mean(np.abs(errs)))
-    r = -mae
-    viol = int(np.any(np.abs(errs) > off_line_cap))
-    return r, viol
-
-
 def sample_chassis(rng: random.Random) -> Tuple[float, float, float]:
     """Sample a (friction, inertia, noise) triple from the training distribution."""
     friction = rng.choice([0.4, 0.7, 1.0])
@@ -80,37 +60,3 @@ def sample_chassis(rng: random.Random) -> Tuple[float, float, float]:
 def build_robot(friction: float, inertia: float, noise: float,
                 rng: random.Random) -> Robot:
     return Robot(friction=friction, inertia=inertia, noise=noise, rng=rng)
-
-
-def holdout_eval(
-    policy_fn: Callable[[Robot], Tuple[float, float]],
-    n: int,
-    rng: random.Random,
-    reward_fn: Callable[[Dict[str, np.ndarray]], Tuple[float, int]] = reward_aligned,
-    steps: int = 300,
-    speed_scale_fn: Optional[Callable[[int, float, float], float]] = None,
-) -> Dict[str, float]:
-    """Evaluate a policy (maps robot -> (kp, kd)) on n freshly-sampled chassis.
-
-    Returns dict of aggregate stats plus per-episode lists.
-    """
-    rewards: List[float] = []
-    viols: List[int] = []
-    for i in range(n):
-        f, inr, nz = sample_chassis(rng)
-        robot = build_robot(f, inr, nz, rng)
-        kp, kd = policy_fn(robot)
-        pid = PID(kp=kp, kd=kd)
-        speed_scale = speed_scale_fn(i, kp, kd) if speed_scale_fn is not None else 1.0
-        trace = run_episode(robot, pid, steps=steps, speed_scale=speed_scale)
-        r, v = reward_fn(trace)
-        rewards.append(r)
-        viols.append(v)
-    return {
-        "rewards": rewards,
-        "violations": viols,
-        "mean_reward": float(np.mean(rewards)),
-        "violation_rate": float(np.mean(viols)),
-        "violation_count": int(sum(viols)),
-        "n": n,
-    }

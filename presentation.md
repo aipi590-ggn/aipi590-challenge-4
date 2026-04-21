@@ -121,21 +121,21 @@ Holdout: 5 seeds × 30 randomly-sampled chassis.
 
 | policy          | mean reward | violation rate |
 |-----------------|-------------|----------------|
-| Fixed PID       | **-0.272**  | **76.0%**      |
+| Fixed PID       | **-0.272**  | **79.3%**      |
 | Epsilon-greedy  | -0.181      | 20.7%          |
-| LinUCB          | -0.199      | 37.3%          |
-| Neural bandit   | -0.226      | 42.7%          |
-| Oracle (grid)   | -0.151      | 20.7%          |
+| LinUCB          | -0.199      | 36.7%          |
+| Neural bandit   | -0.225      | 42.7%          |
+| Oracle (grid)   | -0.151      | 23.3%          |
 
 > **[CHART, from script output]**
-> `results/holdout.png`. Paired bar chart: mean reward and violation rate per policy.
+> `public/holdout.png`. Paired bar chart: mean reward and violation rate per policy.
 
 > **[CALLOUT]**
-> Fixed PID goes off the line on 76% of random chassis. Any bandit cuts that by at least half.
+> Fixed PID goes off the line on 79% of random chassis. Any bandit cuts that by at least half.
 
 **Speaker notes:**
 
-Core win. Holdout = **150 episodes** (5 seeds × 30 chassis). **Fixed PID violates on 76%** — three of four episodes, the robot strays more than half a unit off the line. Ugly for a demo.
+Core win. Holdout = **150 episodes** (5 seeds × 30 chassis). **Fixed PID violates on 79%** — three of four episodes, the robot strays more than half a unit off the line. Ugly for a demo.
 
 **Any bandit cuts that at least in half.** ε-greedy 21%, LinUCB 37%, neural 43%. Reward numbers match: bandits are 0.04–0.09 better on a –0.15 to –0.30 scale. Oracle upper bound is –0.15, zero violations. **Bandits close 60–80% of the fixed-to-oracle gap.**
 
@@ -152,7 +152,7 @@ Core win. Holdout = **150 episodes** (5 seeds × 30 chassis). **Fixed PID violat
 - LinUCB learns to **pick the slowest speed and idle**.
 
 > **[CHART, from script output]**
-> `results/alignment.png`. Three panels: training curves, selected speed over time, final x bar chart.
+> `public/alignment.png`. Three panels: training curves, selected speed over time, final x bar chart.
 
 | regime                        | mean forward speed | mean x at end | mean `|err|` | violations |
 |-------------------------------|-------------------:|--------------:|--------------:|-----------:|
@@ -195,9 +195,9 @@ Three takeaways.
 
 **Live demo (≈90 seconds):**
 
-1. Click **▶ Tell me the story (auto)**. Four scenes auto-play: fixed PID normal chassis (works), fixed PID swapped chassis (**drifts off**), LinUCB swapped chassis (**holds the line**), side-by-side. Narrate one line per scene.
-2. Policy → **LinUCB**, chassis → **Swapped**. Live contrast with the hero GIF. **If asked about the "swap mid-run" button**: it cuts between pre-computed traces; the sim doesn't model intra-episode dynamics.
-3. **Holdout table** — point at the **76% → 21% violation drop**. Headline number.
+1. Click **▶ Tell me the story (auto)**. Four scenes auto-play: bandit normal chassis (works), fixed PID swapped chassis (**drifts off**), bandit swapped chassis (**holds the line**), side-by-side. Narrate one line per scene.
+2. Policy → **EpsilonGreedy**, chassis → **Swapped**. Live contrast with the hero GIF. **If asked about the "swap mid-run" button**: it cuts between pre-computed traces; the sim doesn't model intra-episode dynamics.
+3. **Holdout table** — point at the **79% → 21% violation drop**. Headline number.
 4. **Alignment panel** — hackable: x=1.69, 0 violations. Aligned: x=6.13, 14 violations. **"Zero violations was never the safe column."**
 
 **If time is tight, drop step 2.** The story auto-play is load-bearing; the rest is depth.

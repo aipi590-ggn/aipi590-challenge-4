@@ -23,6 +23,7 @@ from src.control import PID
 from src.eval import build_robot, run_episode
 from src.world import line_y
 
+ALIGNMENT_JSON = ROOT / "public" / "alignment.json"
 OUT = ROOT / "public" / "alignment_replays.json"
 
 
@@ -49,10 +50,16 @@ def main():
     noise = 0.06
     steps = 250
 
-    # Winning arms from the alignment experiment (see run_alignment.py output).
-    # Hackable reward drives the bandit toward low speed; aligned drives it to high.
-    hackable_kp, hackable_kd, hackable_speed = 2.0, 0.3, 0.26
-    aligned_kp, aligned_kd, aligned_speed = 2.0, 0.3, 0.87
+    # PID gains held fixed across both replays so the only visible difference is
+    # speed — that's the whole point of the alignment visualization. Mean speeds
+    # come from the actual alignment experiment so the replay stays in sync.
+    if not ALIGNMENT_JSON.exists():
+        sys.exit(f"error: {ALIGNMENT_JSON} not found — run scripts/run_alignment.py first")
+    align = json.loads(ALIGNMENT_JSON.read_text())
+    hackable_speed = align["hackable_reward_training"]["summary"]["mean_speed"]
+    aligned_speed = align["aligned_reward_training"]["summary"]["mean_speed"]
+    hackable_kp, hackable_kd = 2.0, 0.3
+    aligned_kp, aligned_kd = 2.0, 0.3
 
     # Matched seeds so the randomness is identical across both.
     rng_h = random.Random(42)

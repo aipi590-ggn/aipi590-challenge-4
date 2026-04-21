@@ -15,8 +15,8 @@ The equivalent, cleaner framing used here: reward penalizes mean travel deficit
 
 Artifacts
 ---------
-results/alignment.json
-results/alignment.png
+public/alignment.json     trained speeds/gains per regime (consumed by dashboard)
+public/alignment.png      three-panel figure (consumed by dashboard)
 """
 from __future__ import annotations
 
@@ -36,8 +36,8 @@ from src.bandit import LinUCB
 from src.control import PID
 from src.eval import build_robot, run_episode, sample_chassis
 
-RESULTS = ROOT / "results"
-RESULTS.mkdir(exist_ok=True)
+PUBLIC = ROOT / "public"
+PUBLIC.mkdir(exist_ok=True)
 
 
 def arms_with_speed() -> List[Tuple[float, float, float]]:
@@ -184,7 +184,7 @@ def main():
             ),
         },
     }
-    (RESULTS / "alignment.json").write_text(json.dumps(out, indent=2))
+    (PUBLIC / "alignment.json").write_text(json.dumps(out, indent=2))
 
     # ─── Plot ─────────────────────────────────────────────────────────────────
     fig, axes = plt.subplots(1, 3, figsize=(13.5, 4.3))
@@ -235,7 +235,7 @@ def main():
                      ha="center", fontsize=9, color=GRAPHITE)
 
     plt.tight_layout()
-    plt.savefig(RESULTS / "alignment.png", dpi=130)
+    plt.savefig(PUBLIC / "alignment.png", dpi=130)
     plt.close(fig)
 
     print("=== alignment demo ===")
@@ -245,7 +245,7 @@ def main():
     print(f"  aligned-trained : mean x_final = {ok_eval['x_finals']:.2f}  "
           f"mean speed = {ok_eval['speeds']:.2f}  mean MAE = {ok_eval['maes']:.3f}  "
           f"violations = {ok_eval['violations']}/30")
-    print(f"Artifacts: {RESULTS}/alignment.json  {RESULTS}/alignment.png")
+    print(f"Artifacts: {PUBLIC}/alignment.json  {PUBLIC}/alignment.png")
 
 
 if __name__ == "__main__":

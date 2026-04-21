@@ -263,8 +263,8 @@
     <span><label>policy</label>
       <select id="policy">
         <option value="Fixed">Fixed PID (kp=2.0, kd=0.5)</option>
-        <option value="EpsilonGreedy">Epsilon-greedy</option>
-        <option value="LinUCB" selected>LinUCB</option>
+        <option value="EpsilonGreedy" selected>Epsilon-greedy</option>
+        <option value="LinUCB">LinUCB</option>
         <option value="NeuralBandit">Neural bandit (dropout TS)</option>
       </select>
     </span>
@@ -847,10 +847,10 @@
   const storyBtn = document.getElementById("story-btn");
   const storyCap = document.getElementById("story-caption");
   const SCENES = [
-    { policy: "LinUCB", policy2: "", chassis: "normal", tag: "SCENE 1", text: "<strong>LinUCB on the normal chassis.</strong> This is what 'in-tolerance' looks like — the robot rides inside the orange band around the curvy target line." },
+    { policy: "EpsilonGreedy", policy2: "", chassis: "normal", tag: "SCENE 1", text: "<strong>Bandit on the normal chassis.</strong> This is what 'in-tolerance' looks like — the robot rides inside the orange band around the curvy target line." },
     { policy: "Fixed", policy2: "", chassis: "swapped", tag: "SCENE 2", text: "<strong>Week 3: motor swapped.</strong> Fixed PID with yesterday's gains can't follow the turns anymore. It drifts out of the tolerance band." },
-    { policy: "LinUCB", policy2: "", chassis: "swapped", tag: "SCENE 3", text: "<strong>LinUCB on the same swapped chassis.</strong> It reads the chassis features, picks different gains, and holds the line." },
-    { policy: "Fixed", policy2: "LinUCB", chassis: "swapped", tag: "SCENE 4", text: "<strong>Side by side on the swapped chassis.</strong> Fixed PID drifts, LinUCB stays on the line. The gap between them is what the bandit earns." },
+    { policy: "EpsilonGreedy", policy2: "", chassis: "swapped", tag: "SCENE 3", text: "<strong>Bandit on the same swapped chassis.</strong> It learned higher-gain arms during training and holds the line." },
+    { policy: "Fixed", policy2: "EpsilonGreedy", chassis: "swapped", tag: "SCENE 4", text: "<strong>Side by side on the swapped chassis.</strong> Fixed PID drifts, the bandit stays on the line. The gap between them is what adaptation earns." },
   ];
   let storyTimer = null;
   function runScene(idx) {
