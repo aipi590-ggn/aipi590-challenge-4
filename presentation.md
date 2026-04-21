@@ -235,8 +235,24 @@ because it gives you calibrated confidence bounds per arm. Epsilon-greedy
 does not. On this narrow benchmark the gap is small, but the story matters
 if you picture an instructor reading the arm statistics live.
 
-Full dashboard with animated robot and the full set of traces is at the URL
-on the slide.
+**Live demo (≈90 seconds):**
+
+1. Open the dashboard at the URL on the slide. Click **▶ Tell me the story
+   (auto)**. Four scenes play on their own: Fixed PID on the normal chassis
+   (works), Fixed PID on the swapped chassis (drifts out of the tolerance
+   band), LinUCB on the swapped chassis (holds the line), Fixed vs LinUCB
+   side-by-side on the swapped chassis. Narrate one line per scene.
+2. Policy dropdown → **LinUCB**, chassis → **Normal**, hit **Swap chassis
+   mid-run** while the robot is tracking. Point out that the trajectory
+   recovers once the bandit reads the new context.
+3. Scroll to the **Holdout** table. Highlight the 76% → 21% violation drop
+   from Fixed to any bandit. This is the headline number.
+4. Scroll to the **Alignment** panel. Hackable regime: mean final x = 1.69
+   with zero violations. Aligned regime: mean final x = 6.13 with 14
+   violations. "Zero violations was never the safe column."
+
+If time is tight, drop step 2. The story auto-play is the load-bearing
+demo; the rest is optional depth.
 
 ---
 
