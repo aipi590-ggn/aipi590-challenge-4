@@ -143,7 +143,7 @@ Core win. Holdout = **150 episodes** (5 seeds × 30 chassis). **Fixed PID violat
 
 ---
 
-### Slide 6: Alignment Failure I Caught
+### Slide 6: Alignment Failure We Caught
 
 **On slide:**
 
@@ -212,7 +212,7 @@ Three takeaways.
 
 **"Why LinUCB and not Thompson sampling?"**
 
-**LinUCB's deterministic UCB** is easier to reason about in a classroom. Thompson sampling needs a posterior, which means assuming a noise model. For the **neural bandit** I did use dropout Thompson sampling (Gal & Ghahramani 2016) — precisely because the closed-form UCB didn't apply.
+**LinUCB's deterministic UCB** is easier to reason about in a classroom. Thompson sampling needs a posterior, which means assuming a noise model. For the **neural bandit** we did use dropout Thompson sampling (Gal & Ghahramani 2016) — precisely because the closed-form UCB didn't apply.
 
 **"Could the chassis swap happen mid-episode?"**
 

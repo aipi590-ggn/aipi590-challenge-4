@@ -55,7 +55,7 @@ Violation rate drops from 79% to 21–43% across all three bandits. Epsilon-gree
 - **Reward: `-MAE - 0.05·mean(|ω|)`**. Motion penalty is what blocks the reward-hacking failure surfaced in the alignment experiment.
 - **Sim only.** A physical robot adds logistics without changing the shape argument. The library is chassis-agnostic: `Robot` is swappable for anything that exposes `sense_line_error()`.
 
-## What I didn't build
+## What we didn't build
 
 - **PPO/SAC comparison.** The point is that full RL is the wrong shape for this decision, not that our PPO lost a race. Reporting a tuned PPO number would reward the wrong thing.
 - **A richer arm space with `ki`.** Students tune `ki` rarely enough that it's out of scope.
