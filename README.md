@@ -1,6 +1,7 @@
 # AIPI 590 · Challenge 4: Line-Follow PID Tuner via Contextual Bandit
 
 [![Live Dashboard](https://img.shields.io/badge/dashboard-live-2ca02c?style=flat)](https://aipi590-ggn.github.io/aipi590-challenge-4/)
+[![Duke AIPI 590](https://img.shields.io/badge/Duke-AIPI%20590-012169?style=flat)](https://masters.pratt.duke.edu/)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg?style=flat)](https://www.python.org/)
 [![LinUCB](https://img.shields.io/badge/algorithm-LinUCB-00539B?style=flat)](https://rob.schapire.net/papers/www10.pdf)
 [![License: MIT](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
