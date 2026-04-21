@@ -189,6 +189,19 @@
     font-size: 12px;
   }
   footer a { color: var(--royal); text-decoration: none; }
+
+  /* ── Replay block (alignment canvas) ─────────────────────────── */
+  .replay-block { margin: 0 0 16px; }
+  .replay-labels { display: flex; gap: 24px; margin: 0 0 10px; flex-wrap: wrap; }
+  .replay-label { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; }
+  .replay-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; margin-top: 3px; flex-shrink: 0; }
+  .replay-policy { font-weight: 600; color: var(--ink); }
+  .replay-meta { color: var(--graphite); font: 11px/1.4 ui-monospace, "SF Mono", monospace; margin-top: 2px; }
+  #replay-canvas { width: 100%; max-width: 100%; height: auto; aspect-ratio: 960 / 220; background: var(--whisper, #f6f7f9); border: 1px solid var(--border-subtle, #E2E6ED); border-radius: 8px; display: block; }
+  .replay-controls { display: flex; gap: 10px; align-items: center; margin: 10px 0 0; }
+  .replay-btn { font: inherit; font-size: 12px; padding: 6px 12px; background: white; color: var(--navy); border: 1px solid var(--border-subtle, #E2E6ED); border-radius: 6px; cursor: pointer; }
+  .replay-btn:hover { border-color: var(--navy); }
+  .replay-tick { font: 11px/1 ui-monospace, monospace; color: var(--graphite); margin-left: auto; }
 </style>
 </head>
 <body>
@@ -282,7 +295,36 @@
       idles near the starting line with near-zero error and never tracks the
       curve. Penalizing travel deficit fixes it.
     </p>
-    <img src="./alignment.png" alt="alignment demo figure" style="width: 100%; border-radius: 8px; display: block; margin: 0 0 16px;" />
+    <div class="replay-block" id="replay-block">
+      <div class="replay-labels">
+        <div class="replay-label">
+          <span class="replay-dot" style="background: #C84E00"></span>
+          <div>
+            <div class="replay-policy">hackable reward</div>
+            <div class="replay-meta" id="replay-meta-h">−MAE only · speed 0.26</div>
+          </div>
+        </div>
+        <div class="replay-label">
+          <span class="replay-dot" style="background: #012169"></span>
+          <div>
+            <div class="replay-policy">aligned reward</div>
+            <div class="replay-meta" id="replay-meta-a">+ travel penalty · speed 0.87</div>
+          </div>
+        </div>
+      </div>
+      <canvas id="replay-canvas" width="960" height="220"></canvas>
+      <div class="replay-controls">
+        <button id="replay-play" class="replay-btn">⏸ Pause</button>
+        <button id="replay-restart" class="replay-btn">↻ Restart</button>
+        <span class="replay-tick" id="replay-tick">step 0 / 0</span>
+      </div>
+    </div>
+
+    <details style="margin: 16px 0 12px;">
+      <summary style="cursor: pointer; color: var(--ink); font-size: 0.9rem;">Full training plots</summary>
+      <img src="./alignment.png" alt="alignment demo figure" style="width: 100%; border-radius: 8px; display: block; margin-top: 10px;" />
+    </details>
+
     <table class="holdout" id="alignment-table">
       <thead>
         <tr><th></th><th>hackable reward</th><th>aligned reward</th></tr>
@@ -674,6 +716,141 @@
   resetState(policySel.value, chassisSel.value);
   drawStage();
   drawTimeline();
+})();
+
+// ── Alignment replay canvas ──────────────────────────────────
+(async function () {
+  const canvas = document.getElementById("replay-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+  function fitCanvas() {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  fitCanvas();
+  window.addEventListener("resize", () => { fitCanvas(); draw(); });
+
+  let data = null;
+  try {
+    const r = await fetch("./alignment_replays.json", { cache: "no-store" });
+    data = await r.json();
+  } catch {
+    canvas.style.display = "none";
+    return;
+  }
+
+  const H_COLOR = "#C84E00";
+  const A_COLOR = "#012169";
+  const LINE_COLOR = "rgba(1, 33, 105, 0.35)";
+  const TRAIL_H = "rgba(200, 78, 0, 0.25)";
+  const TRAIL_A = "rgba(1, 33, 105, 0.3)";
+
+  const hTraj = data.hackable.trajectory;
+  const aTraj = data.aligned.trajectory;
+  const maxSteps = Math.max(hTraj.length, aTraj.length);
+
+  let frame = 0;
+  let playing = true;
+  const playBtn = document.getElementById("replay-play");
+  const restartBtn = document.getElementById("replay-restart");
+  const tickEl = document.getElementById("replay-tick");
+
+  function worldToScreen(x, y, vw, vh) {
+    const { x_min, x_max, y_min, y_max } = data.bounds;
+    const padX = 28, padY = 18;
+    const sx = padX + ((x - x_min) / (x_max - x_min)) * (vw - 2 * padX);
+    const sy = padY + ((y_max - y) / (y_max - y_min)) * (vh - 2 * padY);
+    return [sx, sy];
+  }
+
+  function drawLine(vw, vh) {
+    ctx.strokeStyle = LINE_COLOR;
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    data.line.forEach(([x, y], i) => {
+      const [sx, sy] = worldToScreen(x, y, vw, vh);
+      if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawTrail(traj, upTo, color, vw, vh) {
+    if (upTo < 2) return;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < upTo; i++) {
+      const [x, y] = traj[i];
+      const [sx, sy] = worldToScreen(x, y, vw, vh);
+      if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+    }
+    ctx.stroke();
+  }
+
+  function drawRobot(traj, idx, color, vw, vh) {
+    if (idx < 0 || idx >= traj.length) return;
+    const [x, y, theta] = traj[idx];
+    const [sx, sy] = worldToScreen(x, y, vw, vh);
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(-theta);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(9, 0);
+    ctx.lineTo(-6, -5);
+    ctx.lineTo(-6, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function draw() {
+    const rect = canvas.getBoundingClientRect();
+    const vw = rect.width, vh = rect.height;
+    ctx.clearRect(0, 0, vw, vh);
+    drawLine(vw, vh);
+
+    const hIdx = Math.min(frame, hTraj.length - 1);
+    const aIdx = Math.min(frame, aTraj.length - 1);
+    drawTrail(hTraj, hIdx + 1, TRAIL_H, vw, vh);
+    drawTrail(aTraj, aIdx + 1, TRAIL_A, vw, vh);
+    drawRobot(hTraj, hIdx, H_COLOR, vw, vh);
+    drawRobot(aTraj, aIdx, A_COLOR, vw, vh);
+
+    tickEl.textContent = `step ${frame} / ${maxSteps - 1}`;
+  }
+
+  let last = performance.now();
+  function tick(now) {
+    if (playing) {
+      const dt = now - last;
+      if (dt > 40) { // ~25 fps playback pacing
+        frame = frame + 1;
+        if (frame >= maxSteps) {
+          setTimeout(() => { frame = 0; }, 900); // pause on end
+          frame = maxSteps - 1;
+        }
+        last = now;
+        draw();
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  playBtn.addEventListener("click", () => {
+    playing = !playing;
+    playBtn.textContent = playing ? "⏸ Pause" : "▶ Play";
+  });
+  restartBtn.addEventListener("click", () => { frame = 0; draw(); });
+
+  draw();
+  requestAnimationFrame(tick);
 })();
 </script>
 </body>
