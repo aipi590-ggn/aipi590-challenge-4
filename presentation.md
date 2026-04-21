@@ -1,7 +1,7 @@
 # Challenge 4: Line-Follow PID Tuner via Contextual Bandit
 ## A live-tuning layer for beginner robotics
 
-**Speaker:** Jonas Neves
+**Team:** Lindsay Gross · Yifei Guo · Jonas Neves
 
 ---
 
@@ -208,38 +208,32 @@ never the safe column. It was the degenerate one.
 
 ---
 
-### Slide 6: Take and Cross-Project Tie
+### Slide 6: Takeaways
 
 **On slide:**
 
-- Use the right tool: **one-shot decisions are bandits, not PPO**.
-- Neural bandit did not beat LinUCB here. Honest reporting.
-- The library generalizes: any controller with a discrete hyperparameter menu can drop it in.
-- **Sibling project:** [aipi540-tabletop-perception](https://github.com/jonasneves/aipi540-tabletop-perception) is the perception layer. Same `LinUCB` object tunes visual-servoing parameters there.
-
-> **[IMAGE, optional]**
-> Two-panel diagram: left panel is a robot on a line labeled "control", right panel is a camera over a workspace labeled "perception". A shared box in the middle labeled "LinUCB tuner" has arrows to both.
+- Match the tool to the decision shape: one-shot decisions are bandits, not PPO.
+- Simpler wins: epsilon-greedy ties the oracle here. Neural bandit does not beat LinUCB.
+- Calibrated uncertainty from LinUCB is what a safety wrapper would sit on top of.
+- Reward hacking surfaces the moment the reward has a degree of freedom that lets the policy skip the task.
 
 **Speaker notes:**
 
 Three takeaways.
 
-One: match the tool to the decision shape. If you're making one decision per
-context and observing one reward per decision, that's a contextual bandit
-whether your textbook calls it RL or not. Using PPO here would have been
-theater.
+One: match the tool to the decision shape. Making one decision per context
+and observing one reward per decision is a contextual bandit whether your
+textbook calls it RL or not. Using PPO here would have been theater.
 
-Two: the neural bandit didn't beat LinUCB, and I'm reporting that honestly.
-With a four-dimensional context and 20 arms, there's no nonlinear structure
-for a neural net to find. Simpler model wins. That is a fine answer.
+Two: simpler wins on this problem. Epsilon-greedy ties the oracle, and the
+neural bandit does not beat LinUCB. With a four-dimensional context and
+twenty arms, there is no nonlinear structure for a neural net to find.
+Honest reporting.
 
-Three: this is one layer of a larger robotics-education stack I'm building.
-The perception layer is a sibling project, aipi540-tabletop-perception, which
-detects where the target line actually is from a top-down camera. The same
-LinUCB object can tune the visual-servoing gains on that stack. The bandit
-doesn't care that the arms are PID coefficients here. It cares that they're
-a discrete menu with a per-episode reward. Drop the library in, define the
-arms, define the reward, and the live-tuning layer ships.
+Three: LinUCB is still the pick if you need to bolt a safety wrapper on top,
+because it gives you calibrated confidence bounds per arm. Epsilon-greedy
+does not. On this narrow benchmark the gap is small, but the story matters
+if you picture an instructor reading the arm statistics live.
 
 Full dashboard with animated robot and the full set of traces is at the URL
 on the slide.

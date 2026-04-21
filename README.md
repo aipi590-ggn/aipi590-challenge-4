@@ -4,12 +4,12 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg?style=flat)](https://www.python.org/)
 [![LinUCB](https://img.shields.io/badge/algorithm-LinUCB-00539B?style=flat)](https://rob.schapire.net/papers/www10.pdf)
 
-A contextual bandit that re-tunes PID gains for a line-following robot when its
-chassis changes. Framed as the live-tuning layer of a larger robotics-education
-stack: students swap motors, replace tires, change the chassis. The gains that
-worked yesterday no longer fit. Rather than re-tune by hand, a bandit picks
-`(kp, kd)` from a discrete menu based on a short feature vector describing the
-chassis.
+A contextual bandit that re-tunes PID gains for a line-following robot when
+its chassis changes. In a beginner robotics class, students swap motors,
+replace tires, and change the chassis over the course of a semester. The
+gains that worked yesterday no longer fit. Rather than re-tune by hand, a
+bandit picks `(kp, kd)` from a discrete menu based on a short feature vector
+describing the chassis.
 
 **[Live dashboard](https://aipi590-ggn.github.io/aipi590-challenge-4/)** ·
 **[Slides](presentation.md)** ·
@@ -122,18 +122,8 @@ Artifacts are written to `results/` and copied into `public/` for Pages.
   (arXiv). The taxonomy the reward-hacking demo sits in: reward hacking,
   distributional shift, negative side effects.
 
-## Cross-project context
-
-This repository is one layer of a broader robotics-education stack. The
-contextual-bandit tuner ships as a library that can be dropped into any
-controller with a discrete hyperparameter menu and a per-episode reward. A
-sibling project, [aipi540-tabletop-perception](https://github.com/jonasneves/aipi540-tabletop-perception),
-provides the perception layer (detecting where the target line actually is
-from a top-down camera). The same `LinUCB` object used here is intended to
-tune visual-servoing parameters in that stack.
-
 ## Team
 
-Jonas Neves
+Lindsay Gross · Yifei Guo · Jonas Neves
 
 Duke University · AIPI 590 · Spring 2026
