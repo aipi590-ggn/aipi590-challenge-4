@@ -1,0 +1,154 @@
+{
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "train_episodes": 150,
+  "holdout_n": 30,
+  "n_arms": 20,
+  "policies": {
+    "Fixed": {
+      "mean_reward_per_seed": [
+        -0.2840413747878604,
+        -0.277278676748472,
+        -0.26216760485386614,
+        -0.272192818872133,
+        -0.26460385617858856
+      ],
+      "mean_reward_across_seeds": -0.27205686628818404,
+      "std_reward_across_seeds": 0.008053062560008954,
+      "violation_rate_per_seed": [
+        0.7333333333333333,
+        0.8333333333333334,
+        0.7,
+        0.8333333333333334,
+        0.7
+      ],
+      "violation_rate_across_seeds": 0.76,
+      "violation_count_per_seed": [
+        22,
+        25,
+        21,
+        25,
+        21
+      ],
+      "total_violations": 114,
+      "total_holdout_episodes": 150
+    },
+    "EpsilonGreedy": {
+      "mean_reward_per_seed": [
+        -0.16052973311959143,
+        -0.21674484673928188,
+        -0.15171727704333776,
+        -0.17466677065627134,
+        -0.1997702490393897
+      ],
+      "mean_reward_across_seeds": -0.18068577531957442,
+      "std_reward_across_seeds": 0.02427402774777424,
+      "violation_rate_per_seed": [
+        0.13333333333333333,
+        0.3,
+        0.16666666666666666,
+        0.16666666666666666,
+        0.26666666666666666
+      ],
+      "violation_rate_across_seeds": 0.20666666666666664,
+      "violation_count_per_seed": [
+        4,
+        9,
+        5,
+        5,
+        8
+      ],
+      "total_violations": 31,
+      "total_holdout_episodes": 150
+    },
+    "LinUCB": {
+      "mean_reward_per_seed": [
+        -0.19748848486317552,
+        -0.19772567855958892,
+        -0.19033557018007188,
+        -0.1823367781430168,
+        -0.22538009333602002
+      ],
+      "mean_reward_across_seeds": -0.19865332101637462,
+      "std_reward_across_seeds": 0.014504842451612727,
+      "violation_rate_per_seed": [
+        0.3,
+        0.36666666666666664,
+        0.3333333333333333,
+        0.26666666666666666,
+        0.6
+      ],
+      "violation_rate_across_seeds": 0.37333333333333335,
+      "violation_count_per_seed": [
+        9,
+        11,
+        10,
+        8,
+        18
+      ],
+      "total_violations": 56,
+      "total_holdout_episodes": 150
+    },
+    "NeuralBandit": {
+      "mean_reward_per_seed": [
+        -0.232148226681867,
+        -0.22881922573964467,
+        -0.2189138476516459,
+        -0.21790208787061133,
+        -0.23054696257794502
+      ],
+      "mean_reward_across_seeds": -0.22566607010434278,
+      "std_reward_across_seeds": 0.006027533224649118,
+      "violation_rate_per_seed": [
+        0.4666666666666667,
+        0.43333333333333335,
+        0.26666666666666666,
+        0.43333333333333335,
+        0.5333333333333333
+      ],
+      "violation_rate_across_seeds": 0.42666666666666664,
+      "violation_count_per_seed": [
+        14,
+        13,
+        8,
+        13,
+        16
+      ],
+      "total_violations": 64,
+      "total_holdout_episodes": 150
+    },
+    "Oracle": {
+      "mean_reward_per_seed": [
+        -0.1558653465591832,
+        -0.15897086672248326,
+        -0.1413960204560575,
+        -0.15023765988897045,
+        -0.1476663854300326
+      ],
+      "mean_reward_across_seeds": -0.1508272558113454,
+      "std_reward_across_seeds": 0.006180415557248983,
+      "violation_rate_per_seed": [
+        0.2,
+        0.26666666666666666,
+        0.16666666666666666,
+        0.23333333333333334,
+        0.16666666666666666
+      ],
+      "violation_rate_across_seeds": 0.2066666666666667,
+      "violation_count_per_seed": [
+        6,
+        8,
+        5,
+        7,
+        5
+      ],
+      "total_violations": 31,
+      "total_holdout_episodes": 150
+    }
+  }
+}
